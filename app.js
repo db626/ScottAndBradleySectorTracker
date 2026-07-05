@@ -12,6 +12,7 @@
 
 const STORAGE = {
   marketauxKey: "cf_marketaux_key",
+  alphaVantageKey: "cf_alphavantage_key",
   newsCache: "cf_news_cache_v1", // { "2026-07-04": { technology: {bigName:{...}, sector:{...}, upComer:{...}}, ... } }
   chathamCache: "cf_chatham_cache_v1" // { "2026-07-04": { technology: {title, link, pubDate}, ... } }
 };
@@ -41,6 +42,46 @@ async function fetchStooqHistory(etf) {
     return { date, close: parseFloat(close) };
   }).filter(r => r.date && !isNaN(r.close));
   return rows; // ascending by date
+}
+
+function getAlphaVantageKey() {
+  return localStorage.getItem(STORAGE.alphaVantageKey) || "";
+}
+
+function setAlphaVantageKey(key) {
+  localStorage.setItem(STORAGE.alphaVantageKey, key.trim());
+}
+
+async function fetchAlphaVantageHistory(etf) {
+  const key = getAlphaVantageKey();
+  if (!key) throw new Error("no Alpha Vantage key set");
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${etf}&outputsize=full&apikey=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Alpha Vantage request failed (${res.status})`);
+  const json = await res.json();
+  if (json.Note) throw new Error("Alpha Vantage rate limit hit (25/day on free tier) — try again tomorrow");
+  if (json.Information) throw new Error("Alpha Vantage: " + json.Information);
+  const series = json["Time Series (Daily)"];
+  if (!series) throw new Error("Alpha Vantage returned no time series data");
+  const rows = Object.entries(series)
+    .map(([date, values]) => ({ date, close: parseFloat(values["4. close"]) }))
+    .filter(r => r.date && !isNaN(r.close))
+    .sort((a, b) => a.date.localeCompare(b.date)); // ascending
+  return rows;
+}
+
+// Tries Stooq first (no key needed); if that fails and an Alpha Vantage key is
+// saved, falls back to Alpha Vantage automatically.
+async function fetchHistory(etf) {
+  try {
+    return await fetchStooqHistory(etf);
+  } catch (stooqErr) {
+    console.warn(`Stooq failed for ${etf}, trying Alpha Vantage fallback:`, stooqErr.message);
+    if (!getAlphaVantageKey()) {
+      throw new Error("Stooq unreachable (likely CORS) — add an Alpha Vantage key in Settings to use the fallback");
+    }
+    return await fetchAlphaVantageHistory(etf);
+  }
 }
 
 function closeOnOrBefore(history, targetDate) {
@@ -140,7 +181,7 @@ async function loadAllPrices() {
 
   await Promise.all(SECTORS.map(async sector => {
     try {
-      const history = await fetchStooqHistory(sector.etf);
+      const history = await fetchHistory(sector.etf);
       priceDataBySector[sector.id] = computeChangesForHistory(history);
     } catch (err) {
       console.error(`Price fetch failed for ${sector.etf}:`, err);
@@ -419,6 +460,13 @@ function initSettings() {
   document.getElementById("save-key-btn").addEventListener("click", () => {
     setMarketauxKey(input.value);
     loadAllNews(true);
+  });
+
+  const avInput = document.getElementById("alphavantage-key-input");
+  avInput.value = getAlphaVantageKey();
+  document.getElementById("save-av-key-btn").addEventListener("click", () => {
+    setAlphaVantageKey(avInput.value);
+    loadAllPrices();
   });
 }
 
