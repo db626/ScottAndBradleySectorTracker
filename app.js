@@ -244,7 +244,7 @@ function renderGrid() {
     headerRow.className = `category-header-row category-${category}`;
     const headerCell = document.createElement("td");
     headerCell.colSpan = PERIODS.length + 1;
-    headerCell.innerHTML = `<span class="category-label">${CATEGORY_INFO[category].label}</span><span class="category-description">${CATEGORY_INFO[category].description}</span>`;
+    headerCell.innerHTML = `<div class="category-label">${CATEGORY_INFO[category].label}</div><div class="category-description">${CATEGORY_INFO[category].description}</div>`;
     headerRow.appendChild(headerCell);
     tbody.appendChild(headerRow);
 
@@ -320,9 +320,24 @@ async function marketauxQuery(params) {
   url.searchParams.set("language", "en");
   url.searchParams.set("limit", "3");
   url.searchParams.set("api_token", key);
-  const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`Marketaux request failed (${res.status})`);
-  const json = await res.json();
+
+  // Try direct fetch first. If Marketaux blocks browser CORS (which earlier
+  // testing suggested might be the case), fall back to the same read-only
+  // public proxy used for the RSS feeds, rather than silently failing.
+  try {
+    const res = await fetch(url.toString());
+    if (res.ok) {
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || "Marketaux error");
+      return json.data || [];
+    }
+  } catch (directErr) {
+    console.warn("Marketaux direct fetch failed, trying proxy:", directErr.message);
+  }
+
+  const proxied = await fetch(CORS_PROXY + encodeURIComponent(url.toString()));
+  if (!proxied.ok) throw new Error(`Marketaux unreachable even via proxy (${proxied.status})`);
+  const json = await proxied.json();
   if (json.error) throw new Error(json.error.message || "Marketaux error");
   return json.data || [];
 }
@@ -334,19 +349,34 @@ function pickFirstHeadline(articles) {
 }
 
 async function fetchNewsForSector(sector) {
-  const [bigNameArticles, sectorArticles, upComerArticles] = await Promise.all([
-    marketauxQuery({ symbols: sector.bigNames.join(",") }).catch(() => []),
-    marketauxQuery({ search: sector.sectorKeywords.join(" OR ") }).catch(() => []),
-    marketauxQuery({
-      search: sector.upComerKeywords.join(" OR "),
-      symbols_exclude: sector.bigNames.join(",")
-    }).catch(() => [])
+  // No longer swallowing errors silently — if a query genuinely fails
+  // (as opposed to just returning zero matches), that's tracked and surfaced
+  // rather than shown as an indistinguishable "not found today."
+  const runQuery = async (params) => {
+    try {
+      return { ok: true, articles: await marketauxQuery(params) };
+    } catch (err) {
+      console.error(`Marketaux query failed for ${sector.name}:`, err.message);
+      return { ok: false, error: err.message, articles: [] };
+    }
+  };
+
+  const [bigNameResult, sectorResult, upComerResult] = await Promise.all([
+    runQuery({ symbols: sector.bigNames.join(",") }),
+    runQuery({ search: sector.sectorKeywords.join(" OR ") }),
+    runQuery({ search: sector.upComerKeywords.join(" OR "), symbols_exclude: sector.bigNames.join(",") })
   ]);
 
+  // If every single query failed outright (not just empty results), treat
+  // the whole card as errored rather than showing three fake "not found" rows.
+  if (!bigNameResult.ok && !sectorResult.ok && !upComerResult.ok) {
+    return { error: bigNameResult.error || "Marketaux request failed" };
+  }
+
   return {
-    bigName: pickFirstHeadline(bigNameArticles),
-    sector: pickFirstHeadline(sectorArticles),
-    upComer: pickFirstHeadline(upComerArticles)
+    bigName: pickFirstHeadline(bigNameResult.articles),
+    sector: pickFirstHeadline(sectorResult.articles),
+    upComer: pickFirstHeadline(upComerResult.articles)
   };
 }
 
