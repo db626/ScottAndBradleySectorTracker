@@ -42,21 +42,32 @@ python3 -m http.server 8000
    (this spends more of your daily 100-request quota, so don't do it
    compulsively).
 
-## Chatham House headlines
+## Global and national news headlines
 
-Each sector card also shows a 🌍 "global affairs" line, pulled once a day from
-Chatham House's public "What's new" RSS feed (`chathamhouse.org/path/whatsnew.xml`)
-— headlines only, no login or membership needed, matched to sectors by simple
-keyword overlap with each sector's `sectorKeywords`. This costs nothing against
-your Marketaux quota since it's a separate feed fetched once per refresh, not
-per sector.
+Each sector card also shows a 🌍 "global and national news" line, pulled once
+a day from four public RSS feeds — no login or membership needed for any of
+them, and chosen to span a range of institutional perspectives rather than
+lean one direction:
+
+- **Chatham House** — international affairs / geopolitics (UK-based, largely institutional/centrist)
+- **Brookings Institution** — US public policy research (generally described as center-left)
+- **American Enterprise Institute (AEI)** — US public policy research (generally described as center-right)
+- **NPR Business** — national economic news
+
+These lean labels are rough, commonly-used descriptions, not precise
+measurements — but this mix is deliberately broader than relying on any one
+institution's framing. All four are combined into one pool, then matched to
+sectors by simple keyword overlap with each sector's `sectorKeywords`. This
+costs nothing against your Marketaux quota since it's a separate set of feeds
+fetched once per refresh, not per sector.
 
 Because RSS feeds essentially never send browser-CORS headers, this goes
 through `api.allorigins.win` (a free, read-only public proxy commonly used for
 exactly this) as a fallback if the direct fetch fails. It's only ever handling
 public headline text — nothing private, no keys, no login — so the privacy
 exposure is minimal, but it is a third party in the request path worth knowing
-about.
+about. To add or swap feeds later, just edit the `GLOBAL_NATIONAL_FEEDS` array
+in `app.js`.
 
 ## Price data
 

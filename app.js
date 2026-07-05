@@ -17,10 +17,14 @@ const STORAGE = {
   chathamCache: "cf_chatham_cache_v1" // { "2026-07-04": { technology: {title, link, pubDate}, ... } }
 };
 
-// Chatham House's public "What's new" RSS feed — headlines only, no login needed.
-// Like almost all RSS feeds, it doesn't send CORS headers for browser fetch, so we
-// try direct first and fall back to a read-only public CORS proxy for public XML.
-const CHATHAM_FEED_URL = "https://www.chathamhouse.org/path/whatsnew.xml";
+// Public RSS feeds — headlines only, no login needed for any of these.
+// Combined into one pool, then keyword-matched to sectors just like before.
+const GLOBAL_NATIONAL_FEEDS = [
+  { name: "Chatham House", url: "https://www.chathamhouse.org/path/whatsnew.xml" },
+  { name: "Brookings", url: "https://www.brookings.edu/feeds/rss/research/" },
+  { name: "AEI", url: "https://www.aei.org/feed/" },
+  { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" }
+];
 const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -55,7 +59,11 @@ function setAlphaVantageKey(key) {
 async function fetchAlphaVantageHistory(etf) {
   const key = getAlphaVantageKey();
   if (!key) throw new Error("no Alpha Vantage key set");
-  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${etf}&outputsize=full&apikey=${key}`;
+  // NOTE: outputsize=full (years of history) became a premium-only parameter on
+  // Alpha Vantage's free tier at some point after this app was first built.
+  // compact returns the most recent ~100 trading days — enough for 1D/1W/1M,
+  // NOT enough for YTD/1Y/3Y/5Y, which will show "no data" via this fallback.
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${etf}&outputsize=compact&apikey=${key}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Alpha Vantage request failed (${res.status})`);
   const json = await res.json();
@@ -175,11 +183,17 @@ function textColorForMagnitude(pct, columnMax) {
 
 let priceDataBySector = {}; // id -> { latest, results } | { error: true }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function loadAllPrices() {
   const grid = document.getElementById("grid-body");
   grid.querySelectorAll(".sector-row .status").forEach(el => el.textContent = "loading…");
 
-  await Promise.all(SECTORS.map(async sector => {
+  // Sequential, not Promise.all — firing 11 requests at once trips Alpha
+  // Vantage's free-tier per-second rate limit when the Stooq fallback kicks in.
+  for (const sector of SECTORS) {
     try {
       const history = await fetchHistory(sector.etf);
       priceDataBySector[sector.id] = computeChangesForHistory(history);
@@ -187,9 +201,9 @@ async function loadAllPrices() {
       console.error(`Price fetch failed for ${sector.etf}:`, err);
       priceDataBySector[sector.id] = { error: true, message: err.message };
     }
-  }));
-
-  renderGrid();
+    renderGrid(); // update incrementally so you see rows fill in one by one
+    await sleep(1300); // stay comfortably under Alpha Vantage's ~1 req/sec limit
+  }
 }
 
 function renderGrid() {
@@ -309,37 +323,53 @@ async function fetchNewsForSector(sector) {
   };
 }
 
-// ---------- CHATHAM HOUSE (public RSS, no login) ----------
+// ---------- GLOBAL & NATIONAL NEWS (public RSS feeds, no login) ----------
 
-async function fetchChathamFeedXML() {
-  // Try direct fetch first — if Chatham House ever adds permissive CORS headers,
+async function fetchFeedXML(feedUrl) {
+  // Try direct fetch first — if a feed ever adds permissive CORS headers,
   // this just works with no proxy involved.
   try {
-    const res = await fetch(CHATHAM_FEED_URL);
+    const res = await fetch(feedUrl);
     if (res.ok) return await res.text();
   } catch {
     // fall through to proxy
   }
-  const proxied = await fetch(CORS_PROXY + encodeURIComponent(CHATHAM_FEED_URL));
-  if (!proxied.ok) throw new Error(`Chatham House feed unreachable (${proxied.status})`);
+  const proxied = await fetch(CORS_PROXY + encodeURIComponent(feedUrl));
+  if (!proxied.ok) throw new Error(`Feed unreachable (${proxied.status}): ${feedUrl}`);
   return await proxied.text();
 }
 
-function parseRSSItems(xmlText) {
+function parseRSSItems(xmlText, sourceName) {
   const doc = new DOMParser().parseFromString(xmlText, "text/xml");
   const items = Array.from(doc.querySelectorAll("item"));
   return items.map(item => ({
     title: item.querySelector("title")?.textContent || "",
     link: item.querySelector("link")?.textContent || "",
     description: item.querySelector("description")?.textContent || "",
-    pubDate: item.querySelector("pubDate")?.textContent || ""
+    pubDate: item.querySelector("pubDate")?.textContent || "",
+    source: sourceName
   }));
 }
 
-// Match each sector to the single most recent Chatham House item whose title or
-// description contains one of that sector's keywords (reusing sectorKeywords —
-// same regulation/politics/tech language already defined per sector).
-function matchChathamItemsToSectors(items) {
+async function fetchAllGlobalNationalItems() {
+  const results = await Promise.all(
+    GLOBAL_NATIONAL_FEEDS.map(async feed => {
+      try {
+        const xml = await fetchFeedXML(feed.url);
+        return parseRSSItems(xml, feed.name);
+      } catch (err) {
+        console.warn(`Feed failed (${feed.name}):`, err.message);
+        return [];
+      }
+    })
+  );
+  // Flatten and roughly sort newest-first so matching prefers recent items
+  return results.flat().sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+}
+
+// Match each sector to the single most recent item (across all 3 feeds combined)
+// whose title or description contains one of that sector's keywords.
+function matchItemsToSectors(items) {
   const bySector = {};
   for (const sector of SECTORS) {
     const terms = sector.sectorKeywords.map(k => k.toLowerCase());
@@ -370,14 +400,13 @@ async function loadChathamNews(forceRefresh = false) {
   if (!forceRefresh && cache[today]) return cache[today];
 
   try {
-    const xml = await fetchChathamFeedXML();
-    const items = parseRSSItems(xml);
-    const bySector = matchChathamItemsToSectors(items);
+    const items = await fetchAllGlobalNationalItems();
+    const bySector = matchItemsToSectors(items);
     saveChathamCache({ [today]: bySector });
     return bySector;
   } catch (err) {
-    console.error("Chatham House feed failed:", err);
-    return null; // renderNews will just omit the 🌍 row for every sector
+    console.error("Global/national news feeds failed:", err);
+    return null; // renderNews will just omit the row for every sector
   }
 }
 
@@ -419,7 +448,7 @@ function headlineRow(icon, label, item) {
   const url = item.url || item.link;
   const rawDate = item.published_at || item.pubDate;
   const date = rawDate ? new Date(rawDate).toLocaleDateString() : "";
-  const source = item.source || (label === "global affairs" ? "Chatham House" : "");
+  const source = item.source || "";
   return `
     <div class="headline">
       <span class="headline-icon">${icon}</span>
@@ -445,7 +474,7 @@ function renderNews(dataBySector, chathamBySector) {
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
         ${headlineRow("📰", "sector news", entry.sector)}
         ${headlineRow("🏢", "big name", entry.bigName)}
-        ${headlineRow("🌍", "global affairs", chathamItem)}
+        ${headlineRow("🌍", "global and national news", chathamItem)}
       `;
     }
     newsPanel.appendChild(card);
