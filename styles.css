@@ -200,6 +200,11 @@ main {
   color: var(--ink);
 }
 .refresh-btn:hover { background: var(--paper-raised); }
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  background: var(--paper-raised);
+}
 
 /* ---------- Sector grid ---------- */
 

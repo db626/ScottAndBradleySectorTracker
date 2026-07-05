@@ -25,7 +25,28 @@ const GLOBAL_NATIONAL_FEEDS = [
   { name: "AEI", url: "https://www.aei.org/feed/" },
   { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" }
 ];
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+// Two independent free CORS proxies, tried in sequence. Public proxies like
+// these can get temporarily rate-limited or flaky under heavy use, so relying
+// on just one meant a single bad moment looked like everything being broken.
+const CORS_PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?url="
+];
+
+async function fetchViaProxyChain(targetUrl) {
+  let lastError = null;
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(targetUrl));
+      if (res.ok) return res;
+      lastError = new Error(`Proxy responded with ${res.status}`);
+    } catch (err) {
+      lastError = err;
+      console.warn(`Proxy failed (${proxy}):`, err.message);
+    }
+  }
+  throw lastError || new Error("All proxies failed");
+}
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -195,6 +216,11 @@ function sleep(ms) {
 }
 
 async function loadAllPrices() {
+  const btn = document.getElementById("refresh-prices-btn");
+  const originalLabel = btn.textContent;
+  btn.textContent = "⏳ Refreshing…";
+  btn.disabled = true;
+
   const grid = document.getElementById("grid-body");
   grid.querySelectorAll(".sector-row .status").forEach(el => el.textContent = "loading…");
 
@@ -211,6 +237,9 @@ async function loadAllPrices() {
     renderGrid(); // update incrementally so you see rows fill in one by one
     await sleep(1300); // stay comfortably under Alpha Vantage's ~1 req/sec limit
   }
+
+  btn.textContent = originalLabel;
+  btn.disabled = false;
 }
 
 const CATEGORY_INFO = {
@@ -335,7 +364,7 @@ async function marketauxQuery(params) {
     console.warn("Marketaux direct fetch failed, trying proxy:", directErr.message);
   }
 
-  const proxied = await fetch(CORS_PROXY + encodeURIComponent(url.toString()));
+  const proxied = await fetchViaProxyChain(url.toString());
   if (!proxied.ok) throw new Error(`Marketaux unreachable even via proxy (${proxied.status})`);
   const json = await proxied.json();
   if (json.error) throw new Error(json.error.message || "Marketaux error");
@@ -391,7 +420,7 @@ async function fetchFeedXML(feedUrl) {
   } catch {
     // fall through to proxy
   }
-  const proxied = await fetch(CORS_PROXY + encodeURIComponent(feedUrl));
+  const proxied = await fetchViaProxyChain(feedUrl);
   if (!proxied.ok) throw new Error(`Feed unreachable (${proxied.status}): ${feedUrl}`);
   return await proxied.text();
 }
@@ -479,36 +508,46 @@ async function loadChathamNews(forceRefresh = false) {
 }
 
 async function loadAllNews(forceRefresh = false) {
-  const key = getMarketauxKey();
-  const newsPanel = document.getElementById("news-panel");
-  if (!key) {
-    newsPanel.innerHTML = `<p class="news-empty">Add your free Marketaux API key in Settings to load news.</p>`;
-    return;
-  }
+  const btn = document.getElementById("refresh-news-btn");
+  const originalLabel = btn.textContent;
+  btn.textContent = "⏳ Refreshing…";
+  btn.disabled = true;
 
-  const cache = loadNewsCache();
-  const today = todayStr();
-  const chathamBySector = await loadChathamNews(forceRefresh);
-
-  if (!forceRefresh && cache[today]) {
-    renderNews(cache[today], chathamBySector);
-    return;
-  }
-
-  newsPanel.innerHTML = `<p class="news-empty">Loading news…</p>`;
-  const todayData = {};
-  for (const sector of SECTORS) {
-    try {
-      todayData[sector.id] = await fetchNewsForSector(sector);
-    } catch (err) {
-      console.error(`News fetch failed for ${sector.name}:`, err);
-      todayData[sector.id] = { error: err.message };
+  try {
+    const key = getMarketauxKey();
+    const newsPanel = document.getElementById("news-panel");
+    if (!key) {
+      newsPanel.innerHTML = `<p class="news-empty">Add your free Marketaux API key in Settings to load news.</p>`;
+      return;
     }
-  }
 
-  const newCache = { [today]: todayData };
-  saveNewsCache(newCache);
-  renderNews(todayData, chathamBySector);
+    const cache = loadNewsCache();
+    const today = todayStr();
+    const chathamBySector = await loadChathamNews(forceRefresh);
+
+    if (!forceRefresh && cache[today]) {
+      renderNews(cache[today], chathamBySector);
+      return;
+    }
+
+    newsPanel.innerHTML = `<p class="news-empty">Loading news…</p>`;
+    const todayData = {};
+    for (const sector of SECTORS) {
+      try {
+        todayData[sector.id] = await fetchNewsForSector(sector);
+      } catch (err) {
+        console.error(`News fetch failed for ${sector.name}:`, err);
+        todayData[sector.id] = { error: err.message };
+      }
+    }
+
+    const newCache = { [today]: todayData };
+    saveNewsCache(newCache);
+    renderNews(todayData, chathamBySector);
+  } finally {
+    btn.textContent = originalLabel;
+    btn.disabled = false;
+  }
 }
 
 function headlineRow(icon, label, item) {
