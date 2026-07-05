@@ -13,6 +13,7 @@
 const STORAGE = {
   marketauxKey: "cf_marketaux_key",
   alphaVantageKey: "cf_alphavantage_key",
+  gnewsKey: "cf_gnews_key",
   newsCache: "cf_news_cache_v1", // { "2026-07-04": { technology: {bigName:{...}, sector:{...}, upComer:{...}}, ... } }
   chathamCache: "cf_chatham_cache_v1" // { "2026-07-04": { technology: {title, link, pubDate}, ... } }
 };
@@ -21,9 +22,11 @@ const STORAGE = {
 // Combined into one pool, then keyword-matched to sectors just like before.
 const GLOBAL_NATIONAL_FEEDS = [
   { name: "Chatham House", url: "https://www.chathamhouse.org/path/whatsnew.xml" },
-  { name: "Brookings", url: "https://www.brookings.edu/feeds/rss/research/" },
+  { name: "Foreign Affairs (CFR)", url: "https://www.foreignaffairs.com/rss.xml" },
   { name: "AEI", url: "https://www.aei.org/feed/" },
-  { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" }
+  { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" },
+  { name: "NYT Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
+  { name: "WSJ Business", url: "https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness" }
 ];
 // Two independent free CORS proxies, tried in sequence. Public proxies like
 // these can get temporarily rate-limited or flaky under heavy use, so relying
@@ -377,6 +380,37 @@ function pickFirstHeadline(articles) {
   return { title: a.title, url: a.url, source: a.source, published_at: a.published_at };
 }
 
+function getGNewsKey() {
+  return localStorage.getItem(STORAGE.gnewsKey) || "";
+}
+
+function setGNewsKey(key) {
+  localStorage.setItem(STORAGE.gnewsKey, key.trim());
+}
+
+// GNews is a simple headline API — no ticker/company tagging like Marketaux,
+// just keyword search, but it's confirmed to support direct browser CORS
+// (no proxy needed) which makes it a solid backup when Marketaux is down.
+async function gnewsQuery(query) {
+  const key = getGNewsKey();
+  if (!key) throw new Error("no GNews key set");
+  const url = new URL("https://gnews.io/api/v4/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("lang", "en");
+  url.searchParams.set("max", "3");
+  url.searchParams.set("token", key);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`GNews request failed (${res.status})`);
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors.join("; "));
+  return (json.articles || []).map(a => ({
+    title: a.title,
+    url: a.url,
+    source: a.source?.name,
+    published_at: a.publishedAt
+  }));
+}
+
 async function fetchNewsForSector(sector) {
   // No longer swallowing errors silently — if a query genuinely fails
   // (as opposed to just returning zero matches), that's tracked and surfaced
@@ -396,10 +430,31 @@ async function fetchNewsForSector(sector) {
     runQuery({ search: sector.upComerKeywords.join(" OR "), symbols_exclude: sector.bigNames.join(",") })
   ]);
 
-  // If every single query failed outright (not just empty results), treat
-  // the whole card as errored rather than showing three fake "not found" rows.
+  // If every single Marketaux query failed outright, and a GNews key is
+  // available, fall back to GNews rather than showing an all-error card.
+  // GNews can't filter by ticker the way Marketaux does, so "big name" here
+  // just searches for the company names directly — an approximation, not
+  // the same precision, but better than nothing.
   if (!bigNameResult.ok && !sectorResult.ok && !upComerResult.ok) {
-    return { error: bigNameResult.error || "Marketaux request failed" };
+    if (!getGNewsKey()) {
+      return { error: bigNameResult.error || "Marketaux request failed" };
+    }
+    console.warn(`Marketaux fully failed for ${sector.name}, falling back to GNews`);
+    try {
+      const [bigNameNews, sectorNews, upComerNews] = await Promise.all([
+        gnewsQuery(sector.bigNames.join(" OR ")).catch(() => []),
+        gnewsQuery(sector.sectorKeywords.slice(0, 5).join(" OR ")).catch(() => []),
+        gnewsQuery(sector.upComerKeywords.slice(0, 5).join(" OR ")).catch(() => [])
+      ]);
+      return {
+        bigName: pickFirstHeadline(bigNameNews),
+        sector: pickFirstHeadline(sectorNews),
+        upComer: pickFirstHeadline(upComerNews),
+        viaFallback: "GNews"
+      };
+    } catch (err) {
+      return { error: `Marketaux and GNews both failed: ${err.message}` };
+    }
   }
 
   return {
@@ -578,6 +633,7 @@ function renderNews(dataBySector, chathamBySector) {
     } else {
       card.innerHTML = `
         <h3>${sector.name}</h3>
+        ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (Marketaux unavailable)</p>` : ""}
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
         ${headlineRow("📰", "sector news", entry.sector)}
         ${headlineRow("🏢", "big name", entry.bigName)}
@@ -611,6 +667,13 @@ function initSettings() {
   document.getElementById("save-av-key-btn").addEventListener("click", () => {
     setAlphaVantageKey(avInput.value);
     loadAllPrices();
+  });
+
+  const gnewsInput = document.getElementById("gnews-key-input");
+  gnewsInput.value = getGNewsKey();
+  document.getElementById("save-gnews-key-btn").addEventListener("click", () => {
+    setGNewsKey(gnewsInput.value);
+    loadAllNews(true);
   });
 }
 

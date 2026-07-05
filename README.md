@@ -42,22 +42,40 @@ python3 -m http.server 8000
    (this spends more of your daily 100-request quota, so don't do it
    compulsively).
 
+### Optional: GNews fallback
+
+If Marketaux fails entirely for a sector (not just returns zero results —
+a genuine API/network failure), the app can fall back to
+[GNews](https://gnews.io) instead of showing an error. GNews is confirmed to
+support direct browser requests (no CORS proxy needed), which makes it a
+solid backup, though it can't tag headlines to specific stock tickers the
+way Marketaux does — so the "big name" category becomes an approximate
+company-name search rather than precise ticker matching.
+
+To enable it: sign up free at gnews.io (no card, 100 requests/day), paste
+the key into the third Settings box, click "Save key." If you never add a
+key here, the app works exactly as before — this is purely an optional
+safety net. When a card is showing GNews-sourced data, you'll see a small
+"via GNews (Marketaux unavailable)" note so it's never silently substituted.
+
 ## Global and national news headlines
 
 Each sector card also shows a 🌍 "global and national news" line, pulled once
-a day from four public RSS feeds — no login or membership needed for any of
+a day from six public RSS feeds — no login or membership needed for any of
 them, and chosen to span a range of institutional perspectives rather than
 lean one direction:
 
 - **Chatham House** — international affairs / geopolitics (UK-based, largely institutional/centrist)
-- **Brookings Institution** — US public policy research (generally described as center-left)
+- **Foreign Affairs (Council on Foreign Relations)** — US foreign policy, centrist-establishment
 - **American Enterprise Institute (AEI)** — US public policy research (generally described as center-right)
 - **NPR Business** — national economic news
+- **New York Times Business** — national/business news
+- **Wall Street Journal Business** — national/business news (headlines and summaries only — full articles are paywalled, which is fine since you said clicking through to a paywall is OK)
 
 These lean labels are rough, commonly-used descriptions, not precise
-measurements — but this mix is deliberately broader than relying on any one
-institution's framing. All four are combined into one pool, then matched to
-sectors by simple keyword overlap with each sector's `sectorKeywords`. This
+measurements. All six are combined into one pool, then matched to sectors by
+simple keyword overlap with each sector's `sectorKeywords`, rotating which
+source gets priority per sector so no single feed dominates every match. This
 costs nothing against your Marketaux quota since it's a separate set of feeds
 fetched once per refresh, not per sector.
 
