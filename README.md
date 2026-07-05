@@ -58,25 +58,35 @@ key here, the app works exactly as before — this is purely an optional
 safety net. When a card is showing GNews-sourced data, you'll see a small
 "via GNews (Marketaux unavailable)" note so it's never silently substituted.
 
-## Sector news architecture (dedicated feeds first)
+## Sector news architecture (dedicated feeds + global pool first)
 
-Each sector's 🌱/📰/🏢 rows now draw first from **that sector's own dedicated
-trade press** (2 feeds per sector — e.g. TechCrunch + Ars Technica for
-Technology, Fierce Biotech + Fierce Healthcare for Health Care), defined per
-sector in `sectors.js`'s `dedicatedFeeds` field. This is deterministic and
-free — no quota, no cross-sector keyword mismatches (the old shared-pool
-approach could match a story like a celebrity wedding to both Financials and
-Communication Services just because both sectors' keyword lists happened to
-overlap with the article's text).
+Each sector's 🌱/📰/🏢 rows now search, in order:
 
-**Marketaux, then GNews, are now true last resorts** — only consulted for
-whichever of the 3 categories still comes up empty after checking dedicated
-feeds. This meaningfully reduces dependence on Marketaux's daily quota.
+1. **That sector's own dedicated trade press** (2 feeds — e.g. TechCrunch +
+   Ars Technica for Technology, Fierce Biotech + Fierce Healthcare for
+   Health Care), defined per sector in `sectors.js`'s `dedicatedFeeds` field.
+2. **The shared 🌍 global/national pool** (Chatham House, NYT Business, WSJ
+   Business, etc. — the same 11 sources already fetched once per refresh for
+   the 🌍 row). This costs zero extra network calls since that pool is
+   already in memory — a story from WSJ Business, say, can easily be a
+   perfect match for a specific sector even though WSJ isn't dedicated to it.
+3. **Marketaux**, only for whichever categories both of the above left empty.
+4. **GNews**, only if Marketaux also fails outright.
+
+This is deterministic and mostly free — no quota, no cross-sector keyword
+mismatches (the old shared-pool-only approach could match a story like a
+celebrity wedding to both Financials and Communication Services just because
+both sectors' keyword lists happened to overlap with the article's text).
+Marketaux and GNews are now genuinely last-resort, which meaningfully
+reduces dependence on both services' daily quotas.
 
 **Transparency**: every sector card shows exactly which dedicated sources
 back it, right under the sector name. Where a source covers more than one
 sector (Utility Dive covers both Energy and Utilities), that's called out
-explicitly rather than left implicit.
+explicitly rather than left implicit. If a sector's dedicated feeds are
+genuinely unreachable (network/CORS failure, not just "nothing matched
+today"), a red warning line says so directly on the card — no need to open
+dev tools to tell the two situations apart.
 
 **Atom feed support**: some dedicated sources (The Register) publish Atom,
 not RSS — structurally different XML. The feed parser now auto-detects and

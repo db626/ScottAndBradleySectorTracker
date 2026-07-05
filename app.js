@@ -469,10 +469,10 @@ async function fetchSectorDedicatedNews(sector) {
   return Promise.all(sector.dedicatedFeeds.map(async feed => {
     try {
       const xml = await fetchFeedXML(feed.url);
-      return { name: feed.name, items: parseRSSItems(xml, feed.name) };
+      return { name: feed.name, items: parseRSSItems(xml, feed.name), fetchFailed: false };
     } catch (err) {
       console.warn(`Dedicated feed failed (${feed.name}) for ${sector.name}:`, err.message);
-      return { name: feed.name, items: [] };
+      return { name: feed.name, items: [], fetchFailed: true, error: err.message };
     }
   }));
 }
@@ -494,12 +494,11 @@ function pickKeywordMatchFromGroups(groups, keywords) {
   }) || null;
 }
 
-async function fetchNewsForSector(sector) {
-  // Dedicated per-sector feeds are now the primary source — deterministic,
-  // no quota, no cross-sector keyword mismatches (e.g. a Taylor Swift story
+async function fetchNewsForSector(sector, globalGroups = null) {
+  // Dedicated per-sector feeds are the primary source — deterministic, no
+  // quota, no cross-sector keyword mismatches (e.g. a Taylor Swift story
   // wrongly matching both Financials and Communication Services, which
-  // happened under the old shared-pool approach). Marketaux/GNews only
-  // get consulted for whichever specific categories come up empty here.
+  // happened under the old shared-pool approach).
   const dedicatedGroups = await fetchSectorDedicatedNews(sector);
   let result = { bigName: null, sector: null, upComer: null, viaDedicated: [] };
 
@@ -508,6 +507,26 @@ async function fetchNewsForSector(sector) {
     result.bigName = pickKeywordMatchFromGroups(dedicatedGroups, sector.bigNameCompanies);
     result.upComer = pickKeywordMatchFromGroups(dedicatedGroups, sector.upComerKeywords);
     result.viaDedicated = dedicatedGroups.filter(g => g.items.length).map(g => g.name);
+    // Distinguish "dedicated feeds are unreachable" (network/CORS failure)
+    // from "dedicated feeds work fine but had nothing matching today" —
+    // these look identical from the outside without this tracking, and that
+    // ambiguity cost real diagnostic time tonight.
+    if (dedicatedGroups.every(g => g.fetchFailed)) {
+      result.dedicatedFeedsUnreachable = true;
+      result.dedicatedFeedsError = dedicatedGroups[0]?.error;
+    }
+  }
+
+  // Before ever touching Marketaux/GNews, also check the shared 11-source
+  // global/national pool (already fetched once per refresh for the 🌍 row —
+  // this costs zero extra network calls) for whichever categories the
+  // sector's own 2 dedicated feeds didn't cover. A story from NYT Business
+  // or WSJ Business, say, can easily be a perfect match for a specific
+  // sector even though those feeds aren't dedicated to it.
+  if (globalGroups) {
+    if (!result.sector) result.sector = pickKeywordMatchFromGroups(globalGroups, sector.sectorKeywords);
+    if (!result.bigName) result.bigName = pickKeywordMatchFromGroups(globalGroups, sector.bigNameCompanies);
+    if (!result.upComer) result.upComer = pickKeywordMatchFromGroups(globalGroups, sector.upComerKeywords);
   }
 
   const stillMissing = !result.bigName || !result.sector || !result.upComer;
@@ -667,19 +686,23 @@ function saveChathamCache(cache) {
   localStorage.setItem(STORAGE.chathamCache, JSON.stringify(cache));
 }
 
-async function loadChathamNews(forceRefresh = false) {
+// Returns the raw feed groups (not pre-matched to sectors) so the same fetch
+// can be reused both for the 🌍 row AND as a supplementary search pool for
+// 🌱/📰/🏢 — previously this 11-source pool sat unused for those 3 categories
+// even though e.g. NYT Business or WSJ Business often carries stories that
+// are a perfect match for a specific sector.
+async function loadGlobalNationalGroups(forceRefresh = false) {
   const today = todayStr();
   const cache = loadChathamCache();
   if (!forceRefresh && cache[today]) return cache[today];
 
   try {
-    const items = await fetchAllGlobalNationalItems();
-    const bySector = matchItemsToSectors(items);
-    saveChathamCache({ [today]: bySector });
-    return bySector;
+    const groups = await fetchAllGlobalNationalItems();
+    saveChathamCache({ [today]: groups });
+    return groups;
   } catch (err) {
     console.error("Global/national news feeds failed:", err);
-    return null; // renderNews will just omit the row for every sector
+    return null;
   }
 }
 
@@ -699,7 +722,8 @@ async function loadAllNews(forceRefresh = false) {
 
     const cache = loadNewsCache();
     const today = todayStr();
-    const chathamBySector = await loadChathamNews(forceRefresh);
+    const globalGroups = await loadGlobalNationalGroups(forceRefresh);
+    const chathamBySector = globalGroups ? matchItemsToSectors(globalGroups) : null;
 
     if (!forceRefresh && cache[today]) {
       renderNews(cache[today], chathamBySector);
@@ -710,7 +734,7 @@ async function loadAllNews(forceRefresh = false) {
     const todayData = {};
     for (const sector of SECTORS) {
       try {
-        todayData[sector.id] = await fetchNewsForSector(sector);
+        todayData[sector.id] = await fetchNewsForSector(sector, globalGroups);
       } catch (err) {
         console.error(`News fetch failed for ${sector.name}:`, err);
         todayData[sector.id] = { error: err.message };
@@ -781,7 +805,8 @@ function renderNews(dataBySector, chathamBySector) {
       card.innerHTML = `
         <h3>${sector.name}</h3>
         ${sourceNames ? `<p class="sector-sources">Sources: ${sourceNames}</p>` : ""}
-        ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (dedicated feeds and Marketaux unavailable for at least one category)</p>` : ""}
+        ${entry.dedicatedFeedsUnreachable ? `<p class="unreachable-note">⚠ dedicated feeds unreachable${entry.dedicatedFeedsError ? ` (${entry.dedicatedFeedsError})` : ""} — likely blocked by proxy/CORS, not just "no news today"</p>` : ""}
+        ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (dedicated feeds, the global/national pool, and Marketaux all had nothing for at least one category)</p>` : ""}
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
         ${headlineRow("📰", "sector news", entry.sector)}
         ${headlineRow("🏢", "big name", entry.bigName)}
