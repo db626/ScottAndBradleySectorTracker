@@ -26,7 +26,8 @@ const GLOBAL_NATIONAL_FEEDS = [
   { name: "AEI", url: "https://www.aei.org/feed/" },
   { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" },
   { name: "NYT Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
-  { name: "WSJ Business", url: "https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness" }
+  { name: "WSJ Business", url: "https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness" },
+  { name: "WashingtonWise (Schwab)", url: "https://feeds.pacific-content.com/washingtonwise-investor" }
 ];
 // Two independent free CORS proxies, tried in sequence. Public proxies like
 // these can get temporarily rate-limited or flaky under heavy use, so relying
@@ -246,9 +247,9 @@ async function loadAllPrices() {
 }
 
 const CATEGORY_INFO = {
-  cyclical: { label: "Cyclical", description: "Tracks the economic cycle closely" },
-  sensitive: { label: "Sensitive", description: "Some economic sensitivity, softened by pricing power or steady demand" },
-  defensive: { label: "Defensive", description: "Demand holds up regardless of the cycle" }
+  cyclical: { label: "Cyclical", description: "A stock category that tracks the economic cycle closely" },
+  sensitive: { label: "Sensitive", description: "A stock category with some economic sensitivity, softened by pricing power or steady demand" },
+  defensive: { label: "Defensive", description: "A stock category where demand holds up regardless of the cycle" }
 };
 const CATEGORY_ORDER = ["cyclical", "sensitive", "defensive"];
 
