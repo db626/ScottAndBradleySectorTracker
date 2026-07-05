@@ -503,6 +503,7 @@ async function fetchNewsForSector(sector, globalGroups = null) {
   let result = { bigName: null, sector: null, upComer: null, viaDedicated: [] };
 
   if (dedicatedGroups) {
+    console.log(`[${sector.name}] dedicated feeds:`, dedicatedGroups.map(g => `${g.name}: ${g.fetchFailed ? "FETCH FAILED (" + g.error + ")" : g.items.length + " items"}`));
     result.sector = pickFreshestFromGroups(dedicatedGroups);
     result.bigName = pickKeywordMatchFromGroups(dedicatedGroups, sector.bigNameCompanies);
     result.upComer = pickKeywordMatchFromGroups(dedicatedGroups, sector.upComerKeywords);
@@ -524,9 +525,22 @@ async function fetchNewsForSector(sector, globalGroups = null) {
   // or WSJ Business, say, can easily be a perfect match for a specific
   // sector even though those feeds aren't dedicated to it.
   if (globalGroups) {
-    if (!result.sector) result.sector = pickKeywordMatchFromGroups(globalGroups, sector.sectorKeywords);
-    if (!result.bigName) result.bigName = pickKeywordMatchFromGroups(globalGroups, sector.bigNameCompanies);
-    if (!result.upComer) result.upComer = pickKeywordMatchFromGroups(globalGroups, sector.upComerKeywords);
+    const totalGlobalItems = globalGroups.reduce((sum, g) => sum + g.items.length, 0);
+    console.log(`[${sector.name}] global pool has ${totalGlobalItems} items across ${globalGroups.length} feeds`);
+    if (!result.sector) {
+      result.sector = pickKeywordMatchFromGroups(globalGroups, sector.sectorKeywords);
+      console.log(`[${sector.name}] sector-news search against global pool, terms:`, sector.sectorKeywords.map(k => k.split(" ")[0]), "-> match:", result.sector?.title || "none");
+    }
+    if (!result.bigName) {
+      result.bigName = pickKeywordMatchFromGroups(globalGroups, sector.bigNameCompanies);
+      console.log(`[${sector.name}] big-name search against global pool, terms:`, sector.bigNameCompanies.map(k => k.split(" ")[0]), "-> match:", result.bigName?.title || "none");
+    }
+    if (!result.upComer) {
+      result.upComer = pickKeywordMatchFromGroups(globalGroups, sector.upComerKeywords);
+      console.log(`[${sector.name}] up-comer search against global pool, terms:`, sector.upComerKeywords.map(k => k.split(" ")[0]), "-> match:", result.upComer?.title || "none");
+    }
+  } else {
+    console.log(`[${sector.name}] globalGroups was null/undefined — the pool wasn't passed through at all`);
   }
 
   const stillMissing = !result.bigName || !result.sector || !result.upComer;
