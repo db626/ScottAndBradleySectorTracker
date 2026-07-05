@@ -22,6 +22,7 @@ const SECTORS = [
     category: "sensitive",
     bigNames: ["AAPL", "MSFT", "NVDA", "AVGO", "ORCL"],
     bigNameCompanies: ["Apple", "Microsoft", "Nvidia", "Broadcom", "Oracle"],
+    dedicatedFeeds: [{ name: "TechCrunch", url: "https://techcrunch.com/feed/" }, { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index" }],
     sectorKeywords: [
       "tech regulation", "antitrust tech", "AI chip export rules", "data privacy law",
       "semiconductor tariffs", "cybersecurity policy", "cloud computing rules",
@@ -41,6 +42,7 @@ const SECTORS = [
     category: "defensive",
     bigNames: ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
     bigNameCompanies: ["Eli Lilly", "UnitedHealth", "Johnson & Johnson", "AbbVie", "Merck"],
+    dedicatedFeeds: [{ name: "Fierce Biotech", url: "https://www.fiercebiotech.com/rss/xml" }, { name: "Fierce Healthcare", url: "https://www.fiercehealthcare.com/rss/xml" }],
     sectorKeywords: [
       "FDA approval", "drug pricing policy", "healthcare regulation", "Medicare policy",
       "Medicaid funding", "pharmaceutical tariffs", "insurance mandate",
@@ -60,6 +62,7 @@ const SECTORS = [
     category: "cyclical",
     bigNames: ["BRK.B", "JPM", "V", "MA", "BAC"],
     bigNameCompanies: ["Berkshire Hathaway", "JPMorgan", "Visa", "Mastercard", "Bank of America"],
+    dedicatedFeeds: [{ name: "American Banker", url: "https://www.americanbanker.com/feed" }, { name: "Banking Dive", url: "https://www.bankingdive.com/feeds/news/" }],
     sectorKeywords: [
       "interest rate policy", "bank regulation", "Federal Reserve rate", "financial rules",
       "banking oversight", "capital requirements rule", "monetary policy decision",
@@ -79,6 +82,7 @@ const SECTORS = [
     category: "cyclical",
     bigNames: ["AMZN", "TSLA", "HD", "MCD", "NKE"],
     bigNameCompanies: ["Amazon", "Tesla", "Home Depot", "McDonald's", "Nike"],
+    dedicatedFeeds: [{ name: "Retail Dive", url: "https://www.retaildive.com/feeds/news/" }, { name: "Modern Retail", url: "https://www.modernretail.co/feed/" }],
     sectorKeywords: [
       "consumer spending data", "retail tariffs", "trade policy retail", "consumer confidence",
       "auto tariffs", "EV subsidy policy", "housing market data", "labor market report",
@@ -97,6 +101,7 @@ const SECTORS = [
     category: "sensitive",
     bigNames: ["META", "GOOGL", "NFLX", "DIS", "TMUS"],
     bigNameCompanies: ["Meta", "Google", "Netflix", "Disney", "T-Mobile"],
+    dedicatedFeeds: [{ name: "Light Reading", url: "https://www.lightreading.com/rss.xml" }, { name: "Digiday", url: "https://digiday.com/feed/" }],
     sectorKeywords: [
       "media regulation", "antitrust media", "telecom policy", "content moderation law",
       "spectrum auction policy", "social media regulation", "streaming regulation",
@@ -115,6 +120,7 @@ const SECTORS = [
     category: "sensitive",
     bigNames: ["GE", "RTX", "CAT", "HON", "UNP"],
     bigNameCompanies: ["General Electric", "RTX", "Caterpillar", "Honeywell", "Union Pacific"],
+    dedicatedFeeds: [{ name: "Manufacturing Dive", url: "https://www.manufacturingdive.com/feeds/news/" }, { name: "Supply Chain Dive", url: "https://www.supplychaindive.com/feeds/news/" }],
     sectorKeywords: [
       "defense spending policy", "manufacturing tariffs", "infrastructure bill", "trade policy industrial",
       "defense budget", "aerospace regulation", "shipping tariffs", "rail regulation",
@@ -133,6 +139,7 @@ const SECTORS = [
     category: "defensive",
     bigNames: ["WMT", "PG", "COST", "KO", "PEP"],
     bigNameCompanies: ["Walmart", "Procter & Gamble", "Costco", "Coca-Cola", "PepsiCo"],
+    dedicatedFeeds: [{ name: "Food Dive", url: "https://www.fooddive.com/feeds/news/" }, { name: "Food Business News", url: "https://www.foodbusinessnews.net/rss" }],
     sectorKeywords: [
       "food price regulation", "agriculture policy", "packaging regulation", "consumer goods tariffs",
       "farm subsidy policy", "food safety rules", "grocery antitrust", "sugar tariff policy",
@@ -151,6 +158,7 @@ const SECTORS = [
     category: "sensitive",
     bigNames: ["XOM", "CVX", "COP", "WMB", "EOG"],
     bigNameCompanies: ["Exxon Mobil", "Chevron", "ConocoPhillips", "Williams Companies", "EOG Resources"],
+    dedicatedFeeds: [{ name: "Utility Dive", url: "https://www.utilitydive.com/feeds/news/" }, { name: "Renewable Energy World", url: "https://www.renewableenergyworld.com/feed/" }],
     sectorKeywords: [
       "OPEC decision", "energy policy", "oil export rules", "renewable energy regulation",
       "drilling regulation", "pipeline policy", "carbon tax policy", "LNG export rules",
@@ -169,6 +177,7 @@ const SECTORS = [
     category: "defensive",
     bigNames: ["NEE", "SO", "DUK", "CEG", "AEP"],
     bigNameCompanies: ["NextEra Energy", "Southern Company", "Duke Energy", "Constellation Energy", "American Electric Power"],
+    dedicatedFeeds: [{ name: "Utility Dive", url: "https://www.utilitydive.com/feeds/news/" }, { name: "T&D World", url: "https://www.tdworld.com/rss.xml" }],
     sectorKeywords: [
       "utility regulation", "grid policy", "energy rate case", "power plant rules",
       "grid modernization policy", "electricity rate hike", "nuclear power policy",
@@ -186,6 +195,7 @@ const SECTORS = [
     category: "cyclical",
     bigNames: ["PLD", "AMT", "EQIX", "WELL", "SPG"],
     bigNameCompanies: ["Prologis", "American Tower", "Equinix", "Welltower", "Simon Property Group"],
+    dedicatedFeeds: [{ name: "HousingWire", url: "https://www.housingwire.com/feed/" }, { name: "Commercial Observer", url: "https://commercialobserver.com/feed/" }],
     sectorKeywords: [
       "housing policy", "mortgage rate rules", "zoning regulation", "commercial real estate rules",
       "rent control policy", "REIT tax rule", "affordable housing policy", "eviction policy",
@@ -203,6 +213,7 @@ const SECTORS = [
     category: "cyclical",
     bigNames: ["LIN", "SHW", "FCX", "ECL", "NEM"],
     bigNameCompanies: ["Linde", "Sherwin-Williams", "Freeport-McMoRan", "Ecolab", "Newmont"],
+    dedicatedFeeds: [{ name: "Mining.com", url: "https://www.mining.com/feed/" }, { name: "Chemical & Engineering News", url: "https://cen.acs.org/rss" }],
     sectorKeywords: [
       "mining regulation", "commodity tariffs", "chemical regulation", "trade policy materials",
       "steel tariffs", "copper export policy", "rare earth policy", "environmental mining rule",

@@ -58,6 +58,34 @@ key here, the app works exactly as before — this is purely an optional
 safety net. When a card is showing GNews-sourced data, you'll see a small
 "via GNews (Marketaux unavailable)" note so it's never silently substituted.
 
+## Sector news architecture (dedicated feeds first)
+
+Each sector's 🌱/📰/🏢 rows now draw first from **that sector's own dedicated
+trade press** (2 feeds per sector — e.g. TechCrunch + Ars Technica for
+Technology, Fierce Biotech + Fierce Healthcare for Health Care), defined per
+sector in `sectors.js`'s `dedicatedFeeds` field. This is deterministic and
+free — no quota, no cross-sector keyword mismatches (the old shared-pool
+approach could match a story like a celebrity wedding to both Financials and
+Communication Services just because both sectors' keyword lists happened to
+overlap with the article's text).
+
+**Marketaux, then GNews, are now true last resorts** — only consulted for
+whichever of the 3 categories still comes up empty after checking dedicated
+feeds. This meaningfully reduces dependence on Marketaux's daily quota.
+
+**Transparency**: every sector card shows exactly which dedicated sources
+back it, right under the sector name. Where a source covers more than one
+sector (Utility Dive covers both Energy and Utilities), that's called out
+explicitly rather than left implicit.
+
+**Atom feed support**: some dedicated sources (The Register) publish Atom,
+not RSS — structurally different XML. The feed parser now auto-detects and
+handles both formats.
+
+To add or adjust a sector's dedicated feeds, edit the `dedicatedFeeds` array
+on that sector in `sectors.js` — same `{ name, url }` shape as the global
+feeds.
+
 ## Global and national news headlines
 
 Each sector card also shows a 🌍 "global and national news" line, pulled once

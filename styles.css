@@ -332,6 +332,14 @@ main {
   letter-spacing: 0.5px;
 }
 
+.sector-sources {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: -6px 0 12px;
+  line-height: 1.5;
+}
+
 .headline {
   display: grid;
   grid-template-columns: 22px 1fr;

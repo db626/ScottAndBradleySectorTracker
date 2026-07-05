@@ -464,10 +464,57 @@ async function gnewsQuery(query) {
   }));
 }
 
+async function fetchSectorDedicatedNews(sector) {
+  if (!sector.dedicatedFeeds || !sector.dedicatedFeeds.length) return null;
+  return Promise.all(sector.dedicatedFeeds.map(async feed => {
+    try {
+      const xml = await fetchFeedXML(feed.url);
+      return { name: feed.name, items: parseRSSItems(xml, feed.name) };
+    } catch (err) {
+      console.warn(`Dedicated feed failed (${feed.name}) for ${sector.name}:`, err.message);
+      return { name: feed.name, items: [] };
+    }
+  }));
+}
+
+function pickFreshestFromGroups(groups) {
+  const all = groups.flatMap(g => g.items).filter(i => i.pubDate);
+  if (!all.length) return null;
+  all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  return all[0];
+}
+
+function pickKeywordMatchFromGroups(groups, keywords) {
+  const terms = keywords.map(k => k.toLowerCase().split(" ")[0]);
+  const all = groups.flatMap(g => g.items).filter(i => i.pubDate);
+  all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  return all.find(item => {
+    const haystack = (item.title + " " + item.description).toLowerCase();
+    return terms.some(term => haystack.includes(term));
+  }) || null;
+}
+
 async function fetchNewsForSector(sector) {
-  // No longer swallowing errors silently — if a query genuinely fails
-  // (as opposed to just returning zero matches), that's tracked and surfaced
-  // rather than shown as an indistinguishable "not found today."
+  // Dedicated per-sector feeds are now the primary source — deterministic,
+  // no quota, no cross-sector keyword mismatches (e.g. a Taylor Swift story
+  // wrongly matching both Financials and Communication Services, which
+  // happened under the old shared-pool approach). Marketaux/GNews only
+  // get consulted for whichever specific categories come up empty here.
+  const dedicatedGroups = await fetchSectorDedicatedNews(sector);
+  let result = { bigName: null, sector: null, upComer: null, viaDedicated: [] };
+
+  if (dedicatedGroups) {
+    result.sector = pickFreshestFromGroups(dedicatedGroups);
+    result.bigName = pickKeywordMatchFromGroups(dedicatedGroups, sector.bigNameCompanies);
+    result.upComer = pickKeywordMatchFromGroups(dedicatedGroups, sector.upComerKeywords);
+    result.viaDedicated = dedicatedGroups.filter(g => g.items.length).map(g => g.name);
+  }
+
+  const stillMissing = !result.bigName || !result.sector || !result.upComer;
+  if (!stillMissing) return result;
+
+  // Fill in only the missing categories via Marketaux, then GNews if
+  // Marketaux fails outright — same error-surfacing discipline as before.
   const runQuery = async (params) => {
     try {
       return { ok: true, articles: await marketauxQuery(params) };
@@ -477,61 +524,50 @@ async function fetchNewsForSector(sector) {
     }
   };
 
+  const needBigName = !result.bigName;
+  const needSector = !result.sector;
+  const needUpComer = !result.upComer;
+
   const [bigNameResult, sectorResult, upComerResult] = await Promise.all([
-    runQuery({ symbols: sector.bigNames.join(",") }),
-    runQuery({ search: sector.sectorKeywords.join(" OR ") }),
-    runQuery({ search: sector.upComerKeywords.join(" OR "), symbols_exclude: sector.bigNames.join(",") })
+    needBigName ? runQuery({ symbols: sector.bigNames.join(",") }) : Promise.resolve({ ok: true, articles: [] }),
+    needSector ? runQuery({ search: sector.sectorKeywords.join(" OR ") }) : Promise.resolve({ ok: true, articles: [] }),
+    needUpComer ? runQuery({ search: sector.upComerKeywords.join(" OR "), symbols_exclude: sector.bigNames.join(",") }) : Promise.resolve({ ok: true, articles: [] })
   ]);
 
-  // If every single Marketaux query failed outright, and a GNews key is
-  // available, fall back to GNews rather than showing an all-error card.
-  // GNews can't filter by ticker the way Marketaux does, so "big name" here
-  // just searches for the company names directly — an approximation, not
-  // the same precision, but better than nothing.
-  if (!bigNameResult.ok && !sectorResult.ok && !upComerResult.ok) {
-    if (!getGNewsKey()) {
-      return { error: bigNameResult.error || "Marketaux request failed" };
-    }
-    console.warn(`Marketaux fully failed for ${sector.name}, falling back to GNews`);
-    try {
-      const runGNews = async (query) => {
-        try {
-          return { ok: true, articles: await gnewsQuery(query) };
-        } catch (err) {
-          console.error(`GNews query failed for ${sector.name}:`, err.message);
-          return { ok: false, error: err.message, articles: [] };
-        }
-      };
+  if (needBigName && !bigNameResult.ok) result.bigNameError = bigNameResult.error;
+  if (needSector && !sectorResult.ok) result.sectorError = sectorResult.error;
+  if (needUpComer && !upComerResult.ok) result.upComerError = upComerResult.error;
 
-      const [bigNameResult, sectorResult, upComerResult] = await Promise.all([
-        runGNews(sector.bigNameCompanies.join(" OR ")),
-        runGNews(sector.sectorKeywords.slice(0, 5).join(" OR ")),
-        runGNews(sector.upComerKeywords.slice(0, 5).join(" OR "))
-      ]);
+  if (needBigName && bigNameResult.ok) result.bigName = pickFirstHeadline(bigNameResult.articles);
+  if (needSector && sectorResult.ok) result.sector = pickFirstHeadline(sectorResult.articles);
+  if (needUpComer && upComerResult.ok) result.upComer = pickFirstHeadline(upComerResult.articles);
 
-      // If every GNews query genuinely failed (not just empty results — an
-      // actual error, e.g. quota exhausted), surface that rather than showing
-      // three misleading "not found today" rows.
-      if (!bigNameResult.ok && !sectorResult.ok && !upComerResult.ok) {
-        return { error: `Marketaux and GNews both failed: ${bigNameResult.error}` };
+  // If Marketaux failed outright for something still missing, try GNews
+  const stillNeedGNews = (needBigName && !result.bigName) || (needSector && !result.sector) || (needUpComer && !result.upComer);
+  if (stillNeedGNews && getGNewsKey()) {
+    const runGNews = async (query) => {
+      try {
+        return { ok: true, articles: await gnewsQuery(query) };
+      } catch (err) {
+        console.error(`GNews query failed for ${sector.name}:`, err.message);
+        return { ok: false, error: err.message, articles: [] };
       }
-
-      return {
-        bigName: pickFirstHeadline(bigNameResult.articles),
-        sector: pickFirstHeadline(sectorResult.articles),
-        upComer: pickFirstHeadline(upComerResult.articles),
-        viaFallback: "GNews"
-      };
-    } catch (err) {
-      return { error: `Marketaux and GNews both failed: ${err.message}` };
+    };
+    if (needBigName && !result.bigName) {
+      const r = await runGNews(sector.bigNameCompanies.join(" OR "));
+      if (r.ok) { result.bigName = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
+    }
+    if (needSector && !result.sector) {
+      const r = await runGNews(sector.sectorKeywords.slice(0, 5).join(" OR "));
+      if (r.ok) { result.sector = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
+    }
+    if (needUpComer && !result.upComer) {
+      const r = await runGNews(sector.upComerKeywords.slice(0, 5).join(" OR "));
+      if (r.ok) { result.upComer = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
     }
   }
 
-  return {
-    bigName: pickFirstHeadline(bigNameResult.articles),
-    sector: pickFirstHeadline(sectorResult.articles),
-    upComer: pickFirstHeadline(upComerResult.articles)
-  };
+  return result;
 }
 
 // ---------- GLOBAL & NATIONAL NEWS (public RSS feeds, no login) ----------
@@ -552,12 +588,27 @@ async function fetchFeedXML(feedUrl) {
 
 function parseRSSItems(xmlText, sourceName) {
   const doc = new DOMParser().parseFromString(xmlText, "text/xml");
-  const items = Array.from(doc.querySelectorAll("item"));
-  return items.map(item => ({
-    title: item.querySelector("title")?.textContent || "",
-    link: item.querySelector("link")?.textContent || "",
-    description: item.querySelector("description")?.textContent || "",
-    pubDate: item.querySelector("pubDate")?.textContent || "",
+
+  // RSS uses <item>; Atom (e.g. The Register) uses <entry> with a different
+  // internal structure — link is an <link href="..."> attribute, not text
+  // content, and dates use <updated> instead of <pubDate>.
+  const rssItems = Array.from(doc.querySelectorAll("item"));
+  if (rssItems.length) {
+    return rssItems.map(item => ({
+      title: item.querySelector("title")?.textContent || "",
+      link: item.querySelector("link")?.textContent || "",
+      description: item.querySelector("description")?.textContent || "",
+      pubDate: item.querySelector("pubDate")?.textContent || "",
+      source: sourceName
+    }));
+  }
+
+  const atomEntries = Array.from(doc.querySelectorAll("entry"));
+  return atomEntries.map(entry => ({
+    title: entry.querySelector("title")?.textContent || "",
+    link: entry.querySelector("link")?.getAttribute("href") || "",
+    description: entry.querySelector("summary")?.textContent || entry.querySelector("content")?.textContent || "",
+    pubDate: entry.querySelector("updated")?.textContent || entry.querySelector("published")?.textContent || "",
     source: sourceName
   }));
 }
@@ -689,9 +740,26 @@ function headlineRow(icon, label, item) {
     </div>`;
 }
 
+function findSharedFeedNames() {
+  const feedToSectors = {};
+  for (const sector of SECTORS) {
+    if (!sector.dedicatedFeeds) continue;
+    for (const feed of sector.dedicatedFeeds) {
+      if (!feedToSectors[feed.name]) feedToSectors[feed.name] = [];
+      feedToSectors[feed.name].push(sector.name);
+    }
+  }
+  const shared = {};
+  for (const [name, sectors] of Object.entries(feedToSectors)) {
+    if (sectors.length > 1) shared[name] = sectors;
+  }
+  return shared;
+}
+
 function renderNews(dataBySector, chathamBySector) {
   const newsPanel = document.getElementById("news-panel");
   newsPanel.innerHTML = "";
+  const sharedFeeds = findSharedFeedNames();
 
   for (const sector of SECTORS) {
     const entry = dataBySector[sector.id];
@@ -701,9 +769,19 @@ function renderNews(dataBySector, chathamBySector) {
     if (!entry || entry.error) {
       card.innerHTML = `<h3>${sector.name}</h3><p class="news-empty">${entry && entry.error ? entry.error : "No news loaded"}</p>`;
     } else {
+      const sourceNames = sector.dedicatedFeeds
+        ? sector.dedicatedFeeds.map(f => {
+            if (sharedFeeds[f.name]) {
+              const others = sharedFeeds[f.name].filter(s => s !== sector.name);
+              return `${f.name} (also covers ${others.join(", ")})`;
+            }
+            return f.name;
+          }).join(", ")
+        : "";
       card.innerHTML = `
         <h3>${sector.name}</h3>
-        ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (Marketaux unavailable)</p>` : ""}
+        ${sourceNames ? `<p class="sector-sources">Sources: ${sourceNames}</p>` : ""}
+        ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (dedicated feeds and Marketaux unavailable for at least one category)</p>` : ""}
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
         ${headlineRow("📰", "sector news", entry.sector)}
         ${headlineRow("🏢", "big name", entry.bigName)}
