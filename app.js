@@ -495,7 +495,7 @@ async function fetchNewsForSector(sector) {
     console.warn(`Marketaux fully failed for ${sector.name}, falling back to GNews`);
     try {
       const [bigNameNews, sectorNews, upComerNews] = await Promise.all([
-        gnewsQuery(sector.bigNames.join(" OR ")).catch(() => []),
+        gnewsQuery(sector.bigNameCompanies.join(" OR ")).catch(() => []),
         gnewsQuery(sector.sectorKeywords.slice(0, 5).join(" OR ")).catch(() => []),
         gnewsQuery(sector.upComerKeywords.slice(0, 5).join(" OR ")).catch(() => [])
       ]);

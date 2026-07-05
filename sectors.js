@@ -21,6 +21,7 @@ const SECTORS = [
     etf: "XLK",
     category: "sensitive",
     bigNames: ["AAPL", "MSFT", "NVDA", "AVGO", "ORCL"],
+    bigNameCompanies: ["Apple", "Microsoft", "Nvidia", "Broadcom", "Oracle"],
     sectorKeywords: [
       "tech regulation", "antitrust tech", "AI chip export rules", "data privacy law",
       "semiconductor tariffs", "cybersecurity policy", "cloud computing rules",
@@ -39,6 +40,7 @@ const SECTORS = [
     etf: "XLV",
     category: "defensive",
     bigNames: ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
+    bigNameCompanies: ["Eli Lilly", "UnitedHealth", "Johnson & Johnson", "AbbVie", "Merck"],
     sectorKeywords: [
       "FDA approval", "drug pricing policy", "healthcare regulation", "Medicare policy",
       "Medicaid funding", "pharmaceutical tariffs", "insurance mandate",
@@ -57,6 +59,7 @@ const SECTORS = [
     etf: "XLF",
     category: "cyclical",
     bigNames: ["BRK.B", "JPM", "V", "MA", "BAC"],
+    bigNameCompanies: ["Berkshire Hathaway", "JPMorgan", "Visa", "Mastercard", "Bank of America"],
     sectorKeywords: [
       "interest rate policy", "bank regulation", "Federal Reserve rate", "financial rules",
       "banking oversight", "capital requirements rule", "monetary policy decision",
@@ -75,6 +78,7 @@ const SECTORS = [
     etf: "XLY",
     category: "cyclical",
     bigNames: ["AMZN", "TSLA", "HD", "MCD", "NKE"],
+    bigNameCompanies: ["Amazon", "Tesla", "Home Depot", "McDonald's", "Nike"],
     sectorKeywords: [
       "consumer spending data", "retail tariffs", "trade policy retail", "consumer confidence",
       "auto tariffs", "EV subsidy policy", "housing market data", "labor market report",
@@ -92,6 +96,7 @@ const SECTORS = [
     etf: "XLC",
     category: "sensitive",
     bigNames: ["META", "GOOGL", "NFLX", "DIS", "TMUS"],
+    bigNameCompanies: ["Meta", "Google", "Netflix", "Disney", "T-Mobile"],
     sectorKeywords: [
       "media regulation", "antitrust media", "telecom policy", "content moderation law",
       "spectrum auction policy", "social media regulation", "streaming regulation",
@@ -109,6 +114,7 @@ const SECTORS = [
     etf: "XLI",
     category: "sensitive",
     bigNames: ["GE", "RTX", "CAT", "HON", "UNP"],
+    bigNameCompanies: ["General Electric", "RTX", "Caterpillar", "Honeywell", "Union Pacific"],
     sectorKeywords: [
       "defense spending policy", "manufacturing tariffs", "infrastructure bill", "trade policy industrial",
       "defense budget", "aerospace regulation", "shipping tariffs", "rail regulation",
@@ -126,6 +132,7 @@ const SECTORS = [
     etf: "XLP",
     category: "defensive",
     bigNames: ["WMT", "PG", "COST", "KO", "PEP"],
+    bigNameCompanies: ["Walmart", "Procter & Gamble", "Costco", "Coca-Cola", "PepsiCo"],
     sectorKeywords: [
       "food price regulation", "agriculture policy", "packaging regulation", "consumer goods tariffs",
       "farm subsidy policy", "food safety rules", "grocery antitrust", "sugar tariff policy",
@@ -143,6 +150,7 @@ const SECTORS = [
     etf: "XLE",
     category: "sensitive",
     bigNames: ["XOM", "CVX", "COP", "WMB", "EOG"],
+    bigNameCompanies: ["Exxon Mobil", "Chevron", "ConocoPhillips", "Williams Companies", "EOG Resources"],
     sectorKeywords: [
       "OPEC decision", "energy policy", "oil export rules", "renewable energy regulation",
       "drilling regulation", "pipeline policy", "carbon tax policy", "LNG export rules",
@@ -160,6 +168,7 @@ const SECTORS = [
     etf: "XLU",
     category: "defensive",
     bigNames: ["NEE", "SO", "DUK", "CEG", "AEP"],
+    bigNameCompanies: ["NextEra Energy", "Southern Company", "Duke Energy", "Constellation Energy", "American Electric Power"],
     sectorKeywords: [
       "utility regulation", "grid policy", "energy rate case", "power plant rules",
       "grid modernization policy", "electricity rate hike", "nuclear power policy",
@@ -176,6 +185,7 @@ const SECTORS = [
     etf: "XLRE",
     category: "cyclical",
     bigNames: ["PLD", "AMT", "EQIX", "WELL", "SPG"],
+    bigNameCompanies: ["Prologis", "American Tower", "Equinix", "Welltower", "Simon Property Group"],
     sectorKeywords: [
       "housing policy", "mortgage rate rules", "zoning regulation", "commercial real estate rules",
       "rent control policy", "REIT tax rule", "affordable housing policy", "eviction policy",
@@ -192,6 +202,7 @@ const SECTORS = [
     etf: "XLB",
     category: "cyclical",
     bigNames: ["LIN", "SHW", "FCX", "ECL", "NEM"],
+    bigNameCompanies: ["Linde", "Sherwin-Williams", "Freeport-McMoRan", "Ecolab", "Newmont"],
     sectorKeywords: [
       "mining regulation", "commodity tariffs", "chemical regulation", "trade policy materials",
       "steel tariffs", "copper export policy", "rare earth policy", "environmental mining rule",
