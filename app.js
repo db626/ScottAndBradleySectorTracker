@@ -850,7 +850,7 @@ function renderNews(dataBySector, chathamBySector) {
         : "";
       card.innerHTML = `
         <h3>${sector.name}</h3>
-        ${sourceNames ? `<p class="sector-sources">Sources: ${sourceNames}</p>` : ""}
+        ${sourceNames ? `<p class="sector-sources">Dedicated sources (checked first): ${sourceNames} — headlines below may also come from the shared 🌍 pool or fallback sources; each one shows its actual source</p>` : ""}
         ${entry.dedicatedFeedsUnreachable ? `<p class="unreachable-note">⚠ dedicated feeds unreachable${entry.dedicatedFeedsError ? ` (${entry.dedicatedFeedsError})` : ""} — likely blocked by proxy/CORS, not just "no news today"</p>` : ""}
         ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (dedicated feeds, the global/national pool, and Marketaux all had nothing for at least one category)</p>` : ""}
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
