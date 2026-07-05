@@ -6,7 +6,7 @@
 <title>Current &amp; Future — Sector Almanac</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=32">
+<link rel="stylesheet" href="styles.css?v=33">
 </head>
 <body>
 
@@ -45,7 +45,10 @@
   <section class="grid-section">
     <div class="section-header">
       <h2>Sector performance</h2>
-      <button id="refresh-prices-btn" class="refresh-btn">↻ Refresh prices</button>
+      <div class="refresh-controls">
+        <button id="refresh-prices-btn" class="refresh-btn">↻ Refresh prices</button>
+        <div class="progress-track" id="prices-progress-track" hidden><div class="progress-fill" id="prices-progress-fill"></div></div>
+      </div>
     </div>
     <p class="section-note">Each figure is measured against the date shown beneath it — not a fixed "today." Sectors are grouped below by how closely they track the economic cycle.</p>
     <div class="table-wrap">
@@ -72,9 +75,18 @@
   <section class="news-section">
     <div class="section-header">
       <h2>What's moving each sector</h2>
-      <button id="refresh-news-btn" class="refresh-btn">↻ Refresh news</button>
+      <div class="refresh-controls">
+        <button id="refresh-news-btn" class="refresh-btn">↻ Refresh news</button>
+        <div class="progress-track" id="news-progress-track" hidden><div class="progress-fill" id="news-progress-fill"></div></div>
+      </div>
     </div>
-    <p class="section-note">🌱 up-and-comer · 📰 sectoral news (regulation, politics, new technology) · 🏢 a sector giant · 🌍 global and national news, from Chatham House, Foreign Affairs (CFR), AEI, NPR Business, NYT Business, WSJ Business, Schwab's WashingtonWise podcast, Fox Business Markets, Farnam Street, Utility Dive, and HousingWire. Each sector's 🌱/📰/🏢 rows search that sector's own dedicated trade press first, then the shared 🌍 pool above, falling back to Marketaux and then GNews only if both come up empty. One of each, cached once per day.</p>
+    <ul class="category-legend-list">
+      <li><span class="legend-icon">🌱</span> <strong>Up-and-comer</strong> — a smaller or newer name making moves in this sector</li>
+      <li><span class="legend-icon">📰</span> <strong>Sectoral news</strong> — regulation, politics, new technology affecting the sector</li>
+      <li><span class="legend-icon">🏢</span> <strong>Sector giant</strong> — news about one of the sector's major companies</li>
+      <li><span class="legend-icon">🌍</span> <strong>Global and national news</strong> — from a shared pool of 11 sources: Chatham House, Foreign Affairs (CFR), AEI, NPR Business, NYT Business, WSJ Business, Schwab's WashingtonWise podcast, Fox Business Markets, Farnam Street, Utility Dive, and HousingWire</li>
+    </ul>
+    <p class="section-note">For the first three rows, each sector checks its own dedicated trade press first (shown on each card), then the shared 🌍 pool above, then Marketaux, then GNews — only moving to the next source if the previous one comes up empty. Cached once per day.</p>
     <div id="news-panel" class="news-panel">
       <p class="news-empty">Loading…</p>
     </div>
@@ -85,8 +97,8 @@
   <p>Personal use only · price data via Stooq · news via Marketaux · built for Bradley &amp; Dad</p>
 </footer>
 
-<script src="sectors.js?v=32"></script>
-<script src="app.js?v=32"></script>
+<script src="sectors.js?v=33"></script>
+<script src="app.js?v=33"></script>
 <script>
   document.getElementById("last-updated").textContent = new Date().toLocaleString();
   document.getElementById("settings-toggle").addEventListener("click", () => {

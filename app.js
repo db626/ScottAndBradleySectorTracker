@@ -292,6 +292,11 @@ async function loadAllPrices() {
   btn.textContent = "⏳ Refreshing…";
   btn.disabled = true;
 
+  const progressTrack = document.getElementById("prices-progress-track");
+  const progressFill = document.getElementById("prices-progress-fill");
+  progressTrack.hidden = false;
+  progressFill.style.width = "0%";
+
   const grid = document.getElementById("grid-body");
   grid.querySelectorAll(".sector-row .status").forEach(el => el.textContent = "loading…");
 
@@ -299,7 +304,8 @@ async function loadAllPrices() {
   // Real delays now happen before every individual API attempt (see fetchHistory),
   // not just between sectors, so a sector that cascades through all 3 fallback
   // tiers is properly spaced out rather than bursting.
-  for (const sector of SECTORS) {
+  for (let i = 0; i < SECTORS.length; i++) {
+    const sector = SECTORS[i];
     try {
       const { rows, source } = await fetchHistory(sector.etf);
       priceDataBySector[sector.id] = computeChangesForHistory(rows);
@@ -309,9 +315,11 @@ async function loadAllPrices() {
       priceDataBySector[sector.id] = { error: true, message: err.message };
     }
     renderGrid(); // update incrementally so you see rows fill in one by one
+    progressFill.style.width = `${Math.round(((i + 1) / SECTORS.length) * 100)}%`;
     await sleep(2000); // slower top-to-bottom fill, comfortably under free-tier limits
   }
 
+  progressTrack.hidden = true;
   btn.textContent = originalLabel;
   btn.disabled = false;
 }
@@ -758,6 +766,11 @@ async function loadAllNews(forceRefresh = false) {
   btn.textContent = "⏳ Refreshing…";
   btn.disabled = true;
 
+  const progressTrack = document.getElementById("news-progress-track");
+  const progressFill = document.getElementById("news-progress-fill");
+  progressTrack.hidden = false;
+  progressFill.style.width = "0%";
+
   try {
     const key = getMarketauxKey();
     const newsPanel = document.getElementById("news-panel");
@@ -778,13 +791,15 @@ async function loadAllNews(forceRefresh = false) {
 
     newsPanel.innerHTML = `<p class="news-empty">Loading news…</p>`;
     const todayData = {};
-    for (const sector of SECTORS) {
+    for (let i = 0; i < SECTORS.length; i++) {
+      const sector = SECTORS[i];
       try {
         todayData[sector.id] = await fetchNewsForSector(sector, globalGroups);
       } catch (err) {
         console.error(`News fetch failed for ${sector.name}:`, err);
         todayData[sector.id] = { error: err.message };
       }
+      progressFill.style.width = `${Math.round(((i + 1) / SECTORS.length) * 100)}%`;
     }
 
     const newCache = { [today]: todayData };
@@ -793,6 +808,7 @@ async function loadAllNews(forceRefresh = false) {
   } finally {
     btn.textContent = originalLabel;
     btn.disabled = false;
+    progressTrack.hidden = true;
   }
 }
 
@@ -850,7 +866,7 @@ function renderNews(dataBySector, chathamBySector) {
         : "";
       card.innerHTML = `
         <h3>${sector.name}</h3>
-        ${sourceNames ? `<p class="sector-sources">Dedicated sources (checked first): ${sourceNames} — headlines below may also come from the shared 🌍 pool or fallback sources; each one shows its actual source</p>` : ""}
+        ${sourceNames ? `<p class="sector-sources">Checks first: ${sourceNames}</p>` : ""}
         ${entry.dedicatedFeedsUnreachable ? `<p class="unreachable-note">⚠ dedicated feeds unreachable${entry.dedicatedFeedsError ? ` (${entry.dedicatedFeedsError})` : ""} — likely blocked by proxy/CORS, not just "no news today"</p>` : ""}
         ${entry.viaFallback ? `<p class="fallback-note">via ${entry.viaFallback} (dedicated feeds, the global/national pool, and Marketaux all had nothing for at least one category)</p>` : ""}
         ${headlineRow("🌱", "up-and-comer", entry.upComer)}
