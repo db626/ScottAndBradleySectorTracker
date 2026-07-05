@@ -162,6 +162,13 @@ function computeChangesForHistory(history) {
 
 // Diverging scale, computed per column (per period) across whatever sectors loaded
 // successfully, anchored at 0. Returns a CSS color string.
+function formatDate(isoDate) {
+  // "2026-07-01" -> "01 JUL"
+  const [year, month, day] = isoDate.split("-");
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  return `${day} ${months[parseInt(month, 10) - 1]}`;
+}
+
 function colorForValue(pct, columnMax) {
   if (pct === null || pct === undefined || isNaN(pct)) return "var(--cell-neutral)";
   const magnitude = Math.min(Math.abs(pct) / (columnMax || 1), 1);
@@ -206,6 +213,13 @@ async function loadAllPrices() {
   }
 }
 
+const CATEGORY_INFO = {
+  cyclical: { label: "Cyclical", description: "Tracks the economic cycle closely" },
+  sensitive: { label: "Sensitive", description: "Some economic sensitivity, softened by pricing power or steady demand" },
+  defensive: { label: "Defensive", description: "Demand holds up regardless of the cycle" }
+};
+const CATEGORY_ORDER = ["cyclical", "sensitive", "defensive"];
+
 function renderGrid() {
   const tbody = document.getElementById("grid-body");
   tbody.innerHTML = "";
@@ -222,44 +236,57 @@ function renderGrid() {
     columnMax[period.id] = max || 1;
   }
 
-  for (const sector of SECTORS) {
-    const row = document.createElement("tr");
-    row.className = "sector-row";
+  for (const category of CATEGORY_ORDER) {
+    const sectorsInGroup = SECTORS.filter(s => s.category === category);
+    if (!sectorsInGroup.length) continue;
 
-    const nameCell = document.createElement("td");
-    nameCell.className = "sector-name-cell";
-    nameCell.innerHTML = `<span class="sector-name">${sector.name}</span><span class="sector-etf">${sector.etf}</span>`;
-    row.appendChild(nameCell);
+    const headerRow = document.createElement("tr");
+    headerRow.className = `category-header-row category-${category}`;
+    const headerCell = document.createElement("td");
+    headerCell.colSpan = PERIODS.length + 1;
+    headerCell.innerHTML = `<span class="category-label">${CATEGORY_INFO[category].label}</span><span class="category-description">${CATEGORY_INFO[category].description}</span>`;
+    headerRow.appendChild(headerCell);
+    tbody.appendChild(headerRow);
 
-    const data = priceDataBySector[sector.id];
+    for (const sector of sectorsInGroup) {
+      const row = document.createElement("tr");
+      row.className = "sector-row";
 
-    if (!data || data.error) {
-      const errCell = document.createElement("td");
-      errCell.colSpan = PERIODS.length;
-      errCell.className = "status error-cell";
-      errCell.textContent = data && data.message ? `Couldn't load price data (${data.message})` : "loading…";
-      row.appendChild(errCell);
-    } else {
-      for (const period of PERIODS) {
-        const cell = document.createElement("td");
-        cell.className = "price-cell";
-        const val = data.results[period.id];
-        if (!val) {
-          cell.textContent = "—";
-          cell.classList.add("no-data");
-        } else {
-          const bg = colorForValue(val.pct, columnMax[period.id]);
-          const fg = textColorForMagnitude(val.pct, columnMax[period.id]);
-          cell.style.backgroundColor = bg;
-          cell.style.color = fg;
-          const sign = val.pct >= 0 ? "+" : "";
-          cell.innerHTML = `<div class="pct">${sign}${val.pct.toFixed(1)}%</div><div class="ref-date">since ${val.refDate}</div>`;
+      const nameCell = document.createElement("td");
+      nameCell.className = "sector-name-cell";
+      nameCell.innerHTML = `<span class="sector-name">${sector.name}</span><span class="sector-etf">${sector.etf}</span>`;
+      row.appendChild(nameCell);
+
+      const data = priceDataBySector[sector.id];
+
+      if (!data || data.error) {
+        const errCell = document.createElement("td");
+        errCell.colSpan = PERIODS.length;
+        errCell.className = "status error-cell";
+        errCell.textContent = data && data.message ? `Couldn't load price data (${data.message})` : "loading…";
+        row.appendChild(errCell);
+      } else {
+        for (const period of PERIODS) {
+          const cell = document.createElement("td");
+          cell.className = "price-cell";
+          const val = data.results[period.id];
+          if (!val) {
+            cell.textContent = "—";
+            cell.classList.add("no-data");
+          } else {
+            const bg = colorForValue(val.pct, columnMax[period.id]);
+            const fg = textColorForMagnitude(val.pct, columnMax[period.id]);
+            cell.style.backgroundColor = bg;
+            cell.style.color = fg;
+            const sign = val.pct >= 0 ? "+" : "";
+            cell.innerHTML = `<div class="pct">${sign}${val.pct.toFixed(1)}%</div><div class="ref-date">since ${formatDate(val.refDate)}</div>`;
+          }
+          row.appendChild(cell);
         }
-        row.appendChild(cell);
       }
-    }
 
-    tbody.appendChild(row);
+      tbody.appendChild(row);
+    }
   }
 }
 
@@ -352,33 +379,44 @@ function parseRSSItems(xmlText, sourceName) {
 }
 
 async function fetchAllGlobalNationalItems() {
-  const results = await Promise.all(
+  // Keep grouped by source (not flattened) so matching can rotate fairly
+  // between sources instead of always favoring whichever feed happens to
+  // post most frequently or most recently.
+  const groups = await Promise.all(
     GLOBAL_NATIONAL_FEEDS.map(async feed => {
       try {
         const xml = await fetchFeedXML(feed.url);
-        return parseRSSItems(xml, feed.name);
+        return { name: feed.name, items: parseRSSItems(xml, feed.name) };
       } catch (err) {
         console.warn(`Feed failed (${feed.name}):`, err.message);
-        return [];
+        return { name: feed.name, items: [] };
       }
     })
   );
-  // Flatten and roughly sort newest-first so matching prefers recent items
-  return results.flat().sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  return groups; // [{ name, items: [...] }, ...]
 }
 
-// Match each sector to the single most recent item (across all 3 feeds combined)
-// whose title or description contains one of that sector's keywords.
-function matchItemsToSectors(items) {
+// Match each sector to one item, rotating which source gets first priority
+// per sector (sector index determines the starting point in the rotation) so
+// a high-volume source doesn't quietly dominate every single sector's match.
+function matchItemsToSectors(feedGroups) {
   const bySector = {};
-  for (const sector of SECTORS) {
+  SECTORS.forEach((sector, sectorIndex) => {
     const terms = sector.sectorKeywords.map(k => k.toLowerCase());
-    const match = items.find(item => {
-      const haystack = (item.title + " " + item.description).toLowerCase();
-      return terms.some(term => haystack.includes(term.split(" ")[0])); // loose match on first word of each keyword phrase
-    });
+    const rotation = [
+      ...feedGroups.slice(sectorIndex % feedGroups.length),
+      ...feedGroups.slice(0, sectorIndex % feedGroups.length)
+    ];
+    let match = null;
+    for (const group of rotation) {
+      match = group.items.find(item => {
+        const haystack = (item.title + " " + item.description).toLowerCase();
+        return terms.some(term => haystack.includes(term.split(" ")[0]));
+      });
+      if (match) break;
+    }
     bySector[sector.id] = match || null;
-  }
+  });
   return bySector;
 }
 
@@ -483,16 +521,24 @@ function renderNews(dataBySector, chathamBySector) {
 
 // ---------- SETTINGS PANEL ----------
 
+// Default keys, pre-filled so a new browser (e.g. your dad's) just needs to
+// click "Save key" once rather than typing them in. NOTE: since this repo is
+// public, these values are visible to anyone who looks at the source code —
+// fine for free-tier keys with no billing risk, but don't put anything more
+// sensitive here.
+const DEFAULT_MARKETAUX_KEY = "kt7qHxWPmrzNCHikjEp2Gd4OOGoHmnKsXBh4QAq4";
+const DEFAULT_ALPHAVANTAGE_KEY = "QJF4DPTOAMMEQ4FS";
+
 function initSettings() {
   const input = document.getElementById("marketaux-key-input");
-  input.value = getMarketauxKey();
+  input.value = getMarketauxKey() || DEFAULT_MARKETAUX_KEY;
   document.getElementById("save-key-btn").addEventListener("click", () => {
     setMarketauxKey(input.value);
     loadAllNews(true);
   });
 
   const avInput = document.getElementById("alphavantage-key-input");
-  avInput.value = getAlphaVantageKey();
+  avInput.value = getAlphaVantageKey() || DEFAULT_ALPHAVANTAGE_KEY;
   document.getElementById("save-av-key-btn").addEventListener("click", () => {
     setAlphaVantageKey(avInput.value);
     loadAllPrices();

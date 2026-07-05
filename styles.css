@@ -1,21 +1,24 @@
 /* styles.css — "Current & Future" sector almanac
-   Design direction: a private financial almanac, not a dashboard template.
-   Aged ledger paper, hairline rules, a serif nameplate, monospace figures. */
+   Design direction: a private financial almanac with a watchmaker's restraint —
+   deep bottle-green and brass accents in place of navy, precise instrument-style
+   figures. Aged ledger paper stays as the base; the accent palette does the work. */
 
 :root {
   --paper: #ECE4CF;
   --paper-raised: #F5EEDC;
   --ink: #232019;
   --ink-muted: #6b6353;
-  --navy: #1F3A5F;
-  --navy-soft: #3A5578;
+  --forest: #0B3D2E;
+  --forest-soft: #1F5C42;
+  --gold: #A8842A;
+  --gold-soft: #C9A84C;
   --rule: #c6b98f;
   --rule-soft: #ddd2ab;
   --green: #2E6B44;
   --red: #A33D2C;
   --cell-neutral: #f4efe0;
 
-  --font-display: "Newsreader", serif;
+  --font-display: "Space Grotesk", sans-serif;
   --font-body: "Source Serif 4", serif;
   --font-mono: "IBM Plex Mono", monospace;
 }
@@ -31,8 +34,8 @@ body {
   line-height: 1.5;
 }
 
-a { color: var(--navy); }
-a:hover { color: var(--navy-soft); }
+a { color: var(--forest); }
+a:hover { color: var(--forest-soft); }
 
 /* ---------- Masthead ---------- */
 
@@ -41,26 +44,26 @@ a:hover { color: var(--navy-soft); }
   align-items: center;
   gap: 24px;
   padding: 20px 32px;
-  border-bottom: 3px double var(--rule);
+  border-bottom: 3px solid var(--forest);
   position: relative;
 }
 
 .masthead-illustration {
-  width: 88px;
-  height: 88px;
+  width: 200px;
+  height: 200px;
   object-fit: cover;
   border-radius: 50%;
-  border: 2px solid var(--ink);
+  border: 5px solid var(--forest);
+  box-shadow: 0 0 0 3px var(--gold);
   flex-shrink: 0;
 }
 
 .masthead-text h1 {
   font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 600;
-  font-size: 44px;
+  font-weight: 700;
+  font-size: 84px;
   margin: 0;
-  letter-spacing: 0.5px;
+  letter-spacing: -1px;
 }
 
 .masthead-subtitle {
@@ -119,13 +122,13 @@ a:hover { color: var(--navy-soft); }
   padding: 10px 18px;
   font-family: var(--font-mono);
   font-size: 15px;
-  background: var(--navy);
+  background: var(--forest);
   color: #fff;
   border: none;
   border-radius: 3px;
   cursor: pointer;
 }
-.settings-panel button:hover { background: var(--navy-soft); }
+.settings-panel button:hover { background: var(--forest-soft); }
 
 .settings-note {
   flex-basis: 100%;
@@ -162,6 +165,27 @@ main {
   color: var(--ink-muted);
   font-size: 16px;
 }
+
+.category-header-row td {
+  padding: 14px 16px 8px;
+  border-bottom: 2px solid var(--gold);
+}
+
+.category-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  margin-right: 12px;
+}
+
+.category-description {
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.category-cyclical .category-label { color: #A33D2C; }
+.category-sensitive .category-label { color: #9A7B0A; }
+.category-defensive .category-label { color: #2E6B44; }
 
 .refresh-btn {
   font-family: var(--font-mono);
@@ -334,8 +358,8 @@ main {
 
 @media (max-width: 640px) {
   .masthead { padding: 16px; gap: 14px; }
-  .masthead-illustration { width: 60px; height: 60px; }
-  .masthead-text h1 { font-size: 30px; }
+  .masthead-illustration { width: 110px; height: 110px; }
+  .masthead-text h1 { font-size: 48px; }
   main { padding: 20px; }
   .section-header h2 { font-size: 24px; }
 }
@@ -343,7 +367,7 @@ main {
 /* ---------- Accessibility ---------- */
 
 button:focus-visible, a:focus-visible, input:focus-visible {
-  outline: 3px solid var(--navy);
+  outline: 3px solid var(--forest);
   outline-offset: 2px;
 }
 
