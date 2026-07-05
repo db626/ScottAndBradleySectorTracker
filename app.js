@@ -494,15 +494,32 @@ async function fetchNewsForSector(sector) {
     }
     console.warn(`Marketaux fully failed for ${sector.name}, falling back to GNews`);
     try {
-      const [bigNameNews, sectorNews, upComerNews] = await Promise.all([
-        gnewsQuery(sector.bigNameCompanies.join(" OR ")).catch(() => []),
-        gnewsQuery(sector.sectorKeywords.slice(0, 5).join(" OR ")).catch(() => []),
-        gnewsQuery(sector.upComerKeywords.slice(0, 5).join(" OR ")).catch(() => [])
+      const runGNews = async (query) => {
+        try {
+          return { ok: true, articles: await gnewsQuery(query) };
+        } catch (err) {
+          console.error(`GNews query failed for ${sector.name}:`, err.message);
+          return { ok: false, error: err.message, articles: [] };
+        }
+      };
+
+      const [bigNameResult, sectorResult, upComerResult] = await Promise.all([
+        runGNews(sector.bigNameCompanies.join(" OR ")),
+        runGNews(sector.sectorKeywords.slice(0, 5).join(" OR ")),
+        runGNews(sector.upComerKeywords.slice(0, 5).join(" OR "))
       ]);
+
+      // If every GNews query genuinely failed (not just empty results — an
+      // actual error, e.g. quota exhausted), surface that rather than showing
+      // three misleading "not found today" rows.
+      if (!bigNameResult.ok && !sectorResult.ok && !upComerResult.ok) {
+        return { error: `Marketaux and GNews both failed: ${bigNameResult.error}` };
+      }
+
       return {
-        bigName: pickFirstHeadline(bigNameNews),
-        sector: pickFirstHeadline(sectorNews),
-        upComer: pickFirstHeadline(upComerNews),
+        bigName: pickFirstHeadline(bigNameResult.articles),
+        sector: pickFirstHeadline(sectorResult.articles),
+        upComer: pickFirstHeadline(upComerResult.articles),
         viaFallback: "GNews"
       };
     } catch (err) {
