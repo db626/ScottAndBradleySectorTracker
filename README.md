@@ -72,6 +72,10 @@ lean one direction:
 - **New York Times Business** — national/business news
 - **Wall Street Journal Business** — national/business news (headlines and summaries only — full articles are paywalled, which is fine since you said clicking through to a paywall is OK)
 - **WashingtonWise (Charles Schwab)** — Mike Townsend's podcast on how Washington policy affects markets; episodes come out roughly biweekly rather than daily, so this one will often show the same episode for a stretch rather than refresh constantly
+- **Fox Business Markets** — national market news, right-of-center institutionally, official feed
+- **Farnam Street** — Shane Parrish's blog built around Charlie Munger's "latticework of mental models"; more evergreen investing-philosophy content than daily news, so like WashingtonWise it won't refresh as often as the pure news feeds
+- **Utility Dive** — dedicated trade press for the utilities sector (grid, regulation, generation, storage)
+- **HousingWire** — dedicated trade press for real estate/mortgage finance
 
 These lean labels are rough, commonly-used descriptions, not precise
 measurements. All six are combined into one pool, then matched to sectors by

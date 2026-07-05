@@ -28,7 +28,11 @@ const GLOBAL_NATIONAL_FEEDS = [
   { name: "NPR Business", url: "https://feeds.npr.org/1006/rss.xml" },
   { name: "NYT Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
   { name: "WSJ Business", url: "https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness" },
-  { name: "WashingtonWise (Schwab)", url: "https://feeds.pacific-content.com/washingtonwise-investor" }
+  { name: "WashingtonWise (Schwab)", url: "https://feeds.pacific-content.com/washingtonwise-investor" },
+  { name: "Fox Business Markets", url: "https://moxie.foxbusiness.com/google-publisher/markets.xml" },
+  { name: "Farnam Street", url: "https://fs.blog/feed/" },
+  { name: "Utility Dive", url: "https://www.utilitydive.com/feeds/news" },
+  { name: "HousingWire", url: "https://www.housingwire.com/feed" }
 ];
 // Two independent free CORS proxies, tried in sequence. Public proxies like
 // these can get temporarily rate-limited or flaky under heavy use, so relying
