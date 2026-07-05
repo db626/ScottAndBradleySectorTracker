@@ -1,22 +1,23 @@
 /* styles.css — "Current & Future" sector almanac
-   Design direction: a private financial almanac with a watchmaker's restraint —
-   deep bottle-green and brass accents in place of navy, precise instrument-style
-   figures. Aged ledger paper stays as the base; the accent palette does the work. */
+   Design direction: Sage archetype — precision and restraint over status display.
+   Ink navy and pewter accents, a neutral warm-gray base rather than aged paper
+   (the cream tone read too much like the Financial Times), instrument-style
+   monospace figures throughout. */
 
 :root {
-  --paper: #ECE4CF;
-  --paper-raised: #F5EEDC;
-  --ink: #232019;
-  --ink-muted: #6b6353;
-  --forest: #0B3D2E;
-  --forest-soft: #1F5C42;
-  --gold: #A8842A;
-  --gold-soft: #C9A84C;
-  --rule: #c6b98f;
-  --rule-soft: #ddd2ab;
+  --paper: #EFEDE9;
+  --paper-raised: #F7F6F3;
+  --ink: #1E2126;
+  --ink-muted: #676C74;
+  --forest: #1B2A4A;
+  --forest-soft: #33456B;
+  --gold: #8A8F98;
+  --gold-soft: #AAB0B9;
+  --rule: #C7C9CD;
+  --rule-soft: #DDDEE1;
   --green: #2E6B44;
   --red: #A33D2C;
-  --cell-neutral: #f4efe0;
+  --cell-neutral: #F1F0ED;
 
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "Source Serif 4", serif;
