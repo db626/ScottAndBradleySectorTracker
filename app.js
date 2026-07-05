@@ -654,6 +654,7 @@ function renderNews(dataBySector, chathamBySector) {
 // sensitive here.
 const DEFAULT_MARKETAUX_KEY = "kt7qHxWPmrzNCHikjEp2Gd4OOGoHmnKsXBh4QAq4";
 const DEFAULT_ALPHAVANTAGE_KEY = "QJF4DPTOAMMEQ4FS";
+const DEFAULT_GNEWS_KEY = "e08daf51237ab4491e59380820885332";
 
 function initSettings() {
   const input = document.getElementById("marketaux-key-input");
@@ -671,7 +672,7 @@ function initSettings() {
   });
 
   const gnewsInput = document.getElementById("gnews-key-input");
-  gnewsInput.value = getGNewsKey();
+  gnewsInput.value = getGNewsKey() || DEFAULT_GNEWS_KEY;
   document.getElementById("save-gnews-key-btn").addEventListener("click", () => {
     setGNewsKey(gnewsInput.value);
     loadAllNews(true);
