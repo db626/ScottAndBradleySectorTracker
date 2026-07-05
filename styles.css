@@ -250,6 +250,16 @@ main {
   color: var(--ink-muted);
 }
 
+.source-tag {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
 .sector-grid tbody tr {
   border-bottom: 1px solid var(--rule-soft);
 }

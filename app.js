@@ -141,12 +141,15 @@ async function fetchTwelveDataHistory(etf) {
 // (tightest quota, and its free tier no longer allows full history).
 async function fetchHistory(etf) {
   try {
-    return await fetchStooqHistory(etf);
+    const rows = await fetchStooqHistory(etf);
+    return { rows, source: "Stooq" };
   } catch (stooqErr) {
     console.warn(`Stooq failed for ${etf}, trying Twelve Data fallback:`, stooqErr.message);
     if (getTwelveDataKey()) {
+      await sleep(1500); // space out the fallback attempt, not just between sectors
       try {
-        return await fetchTwelveDataHistory(etf);
+        const rows = await fetchTwelveDataHistory(etf);
+        return { rows, source: "Twelve Data" };
       } catch (tdErr) {
         console.warn(`Twelve Data failed for ${etf}, trying Alpha Vantage fallback:`, tdErr.message);
       }
@@ -154,7 +157,9 @@ async function fetchHistory(etf) {
     if (!getAlphaVantageKey()) {
       throw new Error("Stooq unreachable (likely CORS) — add a Twelve Data or Alpha Vantage key in Settings to use a fallback");
     }
-    return await fetchAlphaVantageHistory(etf);
+    await sleep(1500); // space out this attempt too — Alpha Vantage's limit is especially tight
+    const rows = await fetchAlphaVantageHistory(etf);
+    return { rows, source: "Alpha Vantage" };
   }
 }
 
@@ -229,10 +234,11 @@ function computeChangesForHistory(history) {
 // Diverging scale, computed per column (per period) across whatever sectors loaded
 // successfully, anchored at 0. Returns a CSS color string.
 function formatDate(isoDate) {
-  // "2026-07-01" -> "01 JUL"
+  // "2026-07-01" -> "01 JUL '26" — the year matters here since 1Y/3Y/5Y
+  // reference dates would otherwise look confusingly similar to recent ones
   const [year, month, day] = isoDate.split("-");
   const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  return `${day} ${months[parseInt(month, 10) - 1]}`;
+  return `${day} ${months[parseInt(month, 10) - 1]} '${year.slice(2)}`;
 }
 
 function colorForValue(pct, columnMax) {
@@ -269,18 +275,21 @@ async function loadAllPrices() {
   const grid = document.getElementById("grid-body");
   grid.querySelectorAll(".sector-row .status").forEach(el => el.textContent = "loading…");
 
-  // Sequential, not Promise.all — firing 11 requests at once trips Alpha
-  // Vantage's free-tier per-second rate limit when the Stooq fallback kicks in.
+  // Sequential, not Promise.all — firing 11 requests at once trips rate limits.
+  // Real delays now happen before every individual API attempt (see fetchHistory),
+  // not just between sectors, so a sector that cascades through all 3 fallback
+  // tiers is properly spaced out rather than bursting.
   for (const sector of SECTORS) {
     try {
-      const history = await fetchHistory(sector.etf);
-      priceDataBySector[sector.id] = computeChangesForHistory(history);
+      const { rows, source } = await fetchHistory(sector.etf);
+      priceDataBySector[sector.id] = computeChangesForHistory(rows);
+      priceDataBySector[sector.id].source = source;
     } catch (err) {
       console.error(`Price fetch failed for ${sector.etf}:`, err);
       priceDataBySector[sector.id] = { error: true, message: err.message };
     }
     renderGrid(); // update incrementally so you see rows fill in one by one
-    await sleep(1300); // stay comfortably under Alpha Vantage's ~1 req/sec limit
+    await sleep(2000); // slower top-to-bottom fill, comfortably under free-tier limits
   }
 
   btn.textContent = originalLabel;
@@ -328,10 +337,12 @@ function renderGrid() {
 
       const nameCell = document.createElement("td");
       nameCell.className = "sector-name-cell";
-      nameCell.innerHTML = `<span class="sector-name">${sector.name}</span><span class="sector-etf">${sector.etf}</span>`;
-      row.appendChild(nameCell);
-
       const data = priceDataBySector[sector.id];
+      const sourceTag = (data && !data.error && data.source && data.source !== "Stooq")
+        ? `<span class="source-tag">via ${data.source}</span>`
+        : "";
+      nameCell.innerHTML = `<span class="sector-name">${sector.name}</span><span class="sector-etf">${sector.etf}</span>${sourceTag}`;
+      row.appendChild(nameCell);
 
       if (!data || data.error) {
         const errCell = document.createElement("td");
