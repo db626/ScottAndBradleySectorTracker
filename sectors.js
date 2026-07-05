@@ -213,7 +213,7 @@ const SECTORS = [
     category: "cyclical",
     bigNames: ["LIN", "SHW", "FCX", "ECL", "NEM"],
     bigNameCompanies: ["Linde", "Sherwin-Williams", "Freeport-McMoRan", "Ecolab", "Newmont"],
-    dedicatedFeeds: [{ name: "Mining.com", url: "https://www.mining.com/feed/" }, { name: "Chemical & Engineering News", url: "https://cen.acs.org/rss" }],
+    dedicatedFeeds: [{ name: "Mining.com", url: "https://www.mining.com/feed/" }, { name: "Chemical & Engineering News", url: "http://feeds.feedburner.com/cen_latestnews" }],
     sectorKeywords: [
       "mining regulation", "commodity tariffs", "chemical regulation", "trade policy materials",
       "steel tariffs", "copper export policy", "rare earth policy", "environmental mining rule",

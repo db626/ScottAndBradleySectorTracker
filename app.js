@@ -46,7 +46,7 @@ async function fetchViaProxyChain(targetUrl) {
   let lastError = null;
   for (const proxy of CORS_PROXIES) {
     try {
-      const res = await fetch(proxy + encodeURIComponent(targetUrl));
+      const res = await fetchWithTimeout(proxy + encodeURIComponent(targetUrl));
       if (res.ok) return res;
       lastError = new Error(`Proxy responded with ${res.status}`);
     } catch (err) {
@@ -63,7 +63,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 async function fetchStooqHistory(etf) {
   const url = `https://stooq.com/q/d/l/?s=${etf.toLowerCase()}.us&i=d`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Stooq request failed (${res.status})`);
   const text = await res.text();
   if (!text || text.startsWith("<") || text.toLowerCase().includes("exceeded")) {
@@ -94,7 +94,7 @@ async function fetchAlphaVantageHistory(etf) {
   // compact returns the most recent ~100 trading days — enough for 1D/1W/1M,
   // NOT enough for YTD/1Y/3Y/5Y, which will show "no data" via this fallback.
   const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${etf}&outputsize=compact&apikey=${key}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Alpha Vantage request failed (${res.status})`);
   const json = await res.json();
   if (json.Note) throw new Error("Alpha Vantage rate limit hit (25/day on free tier) — try again tomorrow");
@@ -123,7 +123,7 @@ async function fetchTwelveDataHistory(etf) {
   // daily bars (~1260 trading days) without hitting a "premium only" wall
   // the way Alpha Vantage's full-history option did.
   const url = `https://api.twelvedata.com/time_series?symbol=${etf}&interval=1day&outputsize=1500&apikey=${key}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Twelve Data request failed (${res.status})`);
   const json = await res.json();
   if (json.status === "error") throw new Error("Twelve Data: " + (json.message || "unknown error"));
@@ -264,6 +264,26 @@ let priceDataBySector = {}; // id -> { latest, results } | { error: true }
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Plain fetch() has no timeout — if a server or proxy hangs without ever
+// responding (not even an error), the promise waits forever. Since sectors
+// are processed one at a time, a single stuck request freezes everything
+// after it, which is exactly what caused "Refresh news" to get permanently
+// stuck. Every network call in this app now goes through this instead.
+async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s: ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function loadAllPrices() {
@@ -410,7 +430,7 @@ async function marketauxQuery(params) {
   // testing suggested might be the case), fall back to the same read-only
   // public proxy used for the RSS feeds, rather than silently failing.
   try {
-    const res = await fetch(url.toString());
+    const res = await fetchWithTimeout(url.toString());
     if (res.ok) {
       const json = await res.json();
       if (json.error) throw new Error(json.error.message || "Marketaux error");
@@ -444,6 +464,18 @@ function setGNewsKey(key) {
 // GNews is a simple headline API — no ticker/company tagging like Marketaux,
 // just keyword search, but it's confirmed to support direct browser CORS
 // (no proxy needed) which makes it a solid backup when Marketaux is down.
+// GNews's parser may choke on punctuation inside company names (hyphens,
+// ampersands — "Freeport-McMoRan", "Johnson & Johnson") and on overly long
+// OR-chains. This strips risky characters and caps term count defensively,
+// since GNews was consistently returning 400 Bad Request (not a quota
+// error) rather than genuinely finding zero matches.
+function sanitizeForGNews(terms, maxTerms = 3) {
+  return terms
+    .slice(0, maxTerms)
+    .map(t => t.replace(/[-&]/g, " ").replace(/\s+/g, " ").trim())
+    .join(" OR ");
+}
+
 async function gnewsQuery(query) {
   const key = getGNewsKey();
   if (!key) throw new Error("no GNews key set");
@@ -452,7 +484,7 @@ async function gnewsQuery(query) {
   url.searchParams.set("lang", "en");
   url.searchParams.set("max", "3");
   url.searchParams.set("token", key);
-  const res = await fetch(url.toString());
+  const res = await fetchWithTimeout(url.toString());
   if (!res.ok) throw new Error(`GNews request failed (${res.status})`);
   const json = await res.json();
   if (json.errors) throw new Error(json.errors.join("; "));
@@ -587,15 +619,15 @@ async function fetchNewsForSector(sector, globalGroups = null) {
       }
     };
     if (needBigName && !result.bigName) {
-      const r = await runGNews(sector.bigNameCompanies.join(" OR "));
+      const r = await runGNews(sanitizeForGNews(sector.bigNameCompanies));
       if (r.ok) { result.bigName = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
     }
     if (needSector && !result.sector) {
-      const r = await runGNews(sector.sectorKeywords.slice(0, 5).join(" OR "));
+      const r = await runGNews(sanitizeForGNews(sector.sectorKeywords));
       if (r.ok) { result.sector = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
     }
     if (needUpComer && !result.upComer) {
-      const r = await runGNews(sector.upComerKeywords.slice(0, 5).join(" OR "));
+      const r = await runGNews(sanitizeForGNews(sector.upComerKeywords));
       if (r.ok) { result.upComer = pickFirstHeadline(r.articles); result.viaFallback = "GNews"; }
     }
   }
@@ -609,7 +641,7 @@ async function fetchFeedXML(feedUrl) {
   // Try direct fetch first — if a feed ever adds permissive CORS headers,
   // this just works with no proxy involved.
   try {
-    const res = await fetch(feedUrl);
+    const res = await fetchWithTimeout(feedUrl);
     if (res.ok) return await res.text();
   } catch {
     // fall through to proxy
