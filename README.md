@@ -71,6 +71,7 @@ lean one direction:
 - **NPR Business** — national economic news
 - **New York Times Business** — national/business news
 - **Wall Street Journal Business** — national/business news (headlines and summaries only — full articles are paywalled, which is fine since you said clicking through to a paywall is OK)
+- **WashingtonWise (Charles Schwab)** — Mike Townsend's podcast on how Washington policy affects markets; episodes come out roughly biweekly rather than daily, so this one will often show the same episode for a stretch rather than refresh constantly
 
 These lean labels are rough, commonly-used descriptions, not precise
 measurements. All six are combined into one pool, then matched to sectors by
@@ -89,13 +90,21 @@ in `app.js`.
 
 ## Price data
 
-Comes from [Stooq](https://stooq.com), which needs no API key. If Stooq's
-CORS policy ever blocks browser requests (this can change without notice
-since it's an unofficial-for-this-use-case source), the sector row will show
-an error message instead of silently failing. The next step in that case
-would be swapping in Alpha Vantage (free key, 25 requests/day — plenty for
-11 ETFs refreshed once a day) as a fallback data source in `app.js`'s
-`fetchStooqHistory` function.
+Comes from [Stooq](https://stooq.com) first, which needs no API key. If
+Stooq's CORS policy blocks browser requests (this can happen without notice
+since it's an unofficial-for-this-use-case source), the app falls back
+through two more tiers automatically:
+
+1. **[Twelve Data](https://twelvedata.com)** (preferred fallback) — free tier
+   gives 800 requests/day and real multi-year history, so YTD/1Y/3Y/5Y still
+   work even when running on this fallback.
+2. **[Alpha Vantage](https://www.alphavantage.co)** (last resort) — free tier
+   is tighter (25 requests/day) and no longer provides full multi-year
+   history on the free tier, so YTD/1Y/3Y/5Y will show "—" if the app has to
+   fall all the way back to this one.
+
+If all three fail, the sector row shows a clear error message rather than
+failing silently.
 
 ## Editing sector composition
 

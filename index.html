@@ -6,7 +6,7 @@
 <title>Current &amp; Future — Sector Almanac</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=18">
 </head>
 <body>
 
@@ -25,10 +25,15 @@
   <button id="save-key-btn">Save key</button>
   <p class="settings-note">Get a free key at <a href="https://www.marketaux.com" target="_blank" rel="noopener">marketaux.com</a> — 100 requests/day, no card required. Your key is stored only in this browser (localStorage), never sent anywhere but Marketaux.</p>
 
-  <label for="alphavantage-key-input">Alpha Vantage API key (price data fallback)</label>
+  <label for="twelvedata-key-input">Twelve Data API key (price data fallback, preferred)</label>
+  <input type="text" id="twelvedata-key-input" placeholder="Paste your free Twelve Data API key">
+  <button id="save-td-key-btn">Save key</button>
+  <p class="settings-note">Only needed if the price grid shows "Couldn't load price data" errors — that means Stooq's free data source is being blocked by your browser. Get a free key at <a href="https://twelvedata.com" target="_blank" rel="noopener">twelvedata.com</a> (800 requests/day — far more generous than Alpha Vantage, and includes real multi-year history).</p>
+
+  <label for="alphavantage-key-input">Alpha Vantage API key (price data fallback, last resort)</label>
   <input type="text" id="alphavantage-key-input" placeholder="Paste your free Alpha Vantage API key">
   <button id="save-av-key-btn">Save key</button>
-  <p class="settings-note">Only needed if the price grid shows "Couldn't load price data" errors — that means Stooq's free data source is being blocked by your browser. Get a free key at <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a> (25 requests/day, enough for all 11 sectors once a day).</p>
+  <p class="settings-note">Only used if both Stooq and Twelve Data fail. Free tier is tighter (25 requests/day) and no longer provides full multi-year history, so YTD/1Y/3Y/5Y will show "—" when running on this fallback. Get a free key at <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">alphavantage.co</a>.</p>
 
   <label for="gnews-key-input">GNews API key (news fallback, optional)</label>
   <input type="text" id="gnews-key-input" placeholder="Paste your free GNews API key">
@@ -80,8 +85,8 @@
   <p>Personal use only · price data via Stooq · news via Marketaux · built for Bradley &amp; Dad</p>
 </footer>
 
-<script src="sectors.js?v=17"></script>
-<script src="app.js?v=17"></script>
+<script src="sectors.js?v=18"></script>
+<script src="app.js?v=18"></script>
 <script>
   document.getElementById("last-updated").textContent = new Date().toLocaleString();
   document.getElementById("settings-toggle").addEventListener("click", () => {

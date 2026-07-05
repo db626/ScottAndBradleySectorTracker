@@ -13,6 +13,7 @@
 const STORAGE = {
   marketauxKey: "cf_marketaux_key",
   alphaVantageKey: "cf_alphavantage_key",
+  twelveDataKey: "cf_twelvedata_key",
   gnewsKey: "cf_gnews_key",
   newsCache: "cf_news_cache_v1", // { "2026-07-04": { technology: {bigName:{...}, sector:{...}, upComer:{...}}, ... } }
   chathamCache: "cf_chatham_cache_v1" // { "2026-07-04": { technology: {title, link, pubDate}, ... } }
@@ -103,15 +104,51 @@ async function fetchAlphaVantageHistory(etf) {
   return rows;
 }
 
-// Tries Stooq first (no key needed); if that fails and an Alpha Vantage key is
-// saved, falls back to Alpha Vantage automatically.
+function getTwelveDataKey() {
+  return localStorage.getItem(STORAGE.twelveDataKey) || "";
+}
+
+function setTwelveDataKey(key) {
+  localStorage.setItem(STORAGE.twelveDataKey, key.trim());
+}
+
+async function fetchTwelveDataHistory(etf) {
+  const key = getTwelveDataKey();
+  if (!key) throw new Error("no Twelve Data key set");
+  // Free tier allows outputsize up to 5000 — comfortably covers 5 years of
+  // daily bars (~1260 trading days) without hitting a "premium only" wall
+  // the way Alpha Vantage's full-history option did.
+  const url = `https://api.twelvedata.com/time_series?symbol=${etf}&interval=1day&outputsize=1500&apikey=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Twelve Data request failed (${res.status})`);
+  const json = await res.json();
+  if (json.status === "error") throw new Error("Twelve Data: " + (json.message || "unknown error"));
+  const values = json.values;
+  if (!values || !values.length) throw new Error("Twelve Data returned no time series data");
+  const rows = values
+    .map(v => ({ date: v.datetime, close: parseFloat(v.close) }))
+    .filter(r => r.date && !isNaN(r.close))
+    .sort((a, b) => a.date.localeCompare(b.date)); // Twelve Data returns newest-first; flip to ascending
+  return rows;
+}
+
+// Tries Stooq first (no key needed), then Twelve Data (much better free daily
+// quota and real historical depth), then Alpha Vantage as a last resort
+// (tightest quota, and its free tier no longer allows full history).
 async function fetchHistory(etf) {
   try {
     return await fetchStooqHistory(etf);
   } catch (stooqErr) {
-    console.warn(`Stooq failed for ${etf}, trying Alpha Vantage fallback:`, stooqErr.message);
+    console.warn(`Stooq failed for ${etf}, trying Twelve Data fallback:`, stooqErr.message);
+    if (getTwelveDataKey()) {
+      try {
+        return await fetchTwelveDataHistory(etf);
+      } catch (tdErr) {
+        console.warn(`Twelve Data failed for ${etf}, trying Alpha Vantage fallback:`, tdErr.message);
+      }
+    }
     if (!getAlphaVantageKey()) {
-      throw new Error("Stooq unreachable (likely CORS) — add an Alpha Vantage key in Settings to use the fallback");
+      throw new Error("Stooq unreachable (likely CORS) — add a Twelve Data or Alpha Vantage key in Settings to use a fallback");
     }
     return await fetchAlphaVantageHistory(etf);
   }
@@ -654,6 +691,7 @@ function renderNews(dataBySector, chathamBySector) {
 // sensitive here.
 const DEFAULT_MARKETAUX_KEY = "kt7qHxWPmrzNCHikjEp2Gd4OOGoHmnKsXBh4QAq4";
 const DEFAULT_ALPHAVANTAGE_KEY = "QJF4DPTOAMMEQ4FS";
+const DEFAULT_TWELVEDATA_KEY = "9779392e115a4aa8ad4ebe7b02744ffe";
 const DEFAULT_GNEWS_KEY = "e08daf51237ab4491e59380820885332";
 
 function initSettings() {
@@ -668,6 +706,13 @@ function initSettings() {
   avInput.value = getAlphaVantageKey() || DEFAULT_ALPHAVANTAGE_KEY;
   document.getElementById("save-av-key-btn").addEventListener("click", () => {
     setAlphaVantageKey(avInput.value);
+    loadAllPrices();
+  });
+
+  const tdInput = document.getElementById("twelvedata-key-input");
+  tdInput.value = getTwelveDataKey() || DEFAULT_TWELVEDATA_KEY;
+  document.getElementById("save-td-key-btn").addEventListener("click", () => {
+    setTwelveDataKey(tdInput.value);
     loadAllPrices();
   });
 
