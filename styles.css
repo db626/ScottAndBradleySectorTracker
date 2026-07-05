@@ -1,0 +1,352 @@
+/* styles.css — "Current & Future" sector almanac
+   Design direction: a private financial almanac, not a dashboard template.
+   Aged ledger paper, hairline rules, a serif nameplate, monospace figures. */
+
+:root {
+  --paper: #ECE4CF;
+  --paper-raised: #F5EEDC;
+  --ink: #232019;
+  --ink-muted: #6b6353;
+  --navy: #1F3A5F;
+  --navy-soft: #3A5578;
+  --rule: #c6b98f;
+  --rule-soft: #ddd2ab;
+  --green: #2E6B44;
+  --red: #A33D2C;
+  --cell-neutral: #f4efe0;
+
+  --font-display: "Newsreader", serif;
+  --font-body: "Source Serif 4", serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+a { color: var(--navy); }
+a:hover { color: var(--navy-soft); }
+
+/* ---------- Masthead ---------- */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 32px;
+  border-bottom: 3px double var(--rule);
+  position: relative;
+}
+
+.masthead-illustration {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.masthead-text h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 44px;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.masthead-subtitle {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.settings-toggle {
+  margin-left: auto;
+  background: none;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.settings-toggle:hover { background: var(--paper-raised); }
+
+/* ---------- Settings panel ---------- */
+
+.settings-panel {
+  background: var(--paper-raised);
+  border-bottom: 1px solid var(--rule);
+  padding: 20px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.settings-panel.hidden { display: none; }
+
+.settings-panel label {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.settings-panel input[type="text"] {
+  flex: 1 1 320px;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  border: 1px solid var(--rule);
+  background: #fff;
+  border-radius: 3px;
+}
+
+.settings-panel button {
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.settings-panel button:hover { background: var(--navy-soft); }
+
+.settings-note {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+/* ---------- Main layout ---------- */
+
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 30px;
+  margin: 0 0 6px;
+}
+
+.section-note {
+  margin: 0 0 18px;
+  color: var(--ink-muted);
+  font-size: 16px;
+}
+
+.refresh-btn {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  background: none;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.refresh-btn:hover { background: var(--paper-raised); }
+
+/* ---------- Sector grid ---------- */
+
+.grid-section { margin-bottom: 48px; }
+
+.table-wrap { overflow-x: auto; }
+
+.sector-grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper-raised);
+}
+
+.sector-grid thead th {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 10px 8px;
+  border-bottom: 2px solid var(--ink);
+  color: var(--ink-muted);
+}
+
+.sector-name-cell {
+  text-align: left !important;
+  min-width: 220px;
+  padding: 12px 16px !important;
+}
+
+.sector-name {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.sector-etf {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.sector-grid tbody tr {
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.price-cell {
+  text-align: center;
+  padding: 10px 6px;
+  min-width: 92px;
+  transition: background-color 0.2s ease;
+}
+
+.price-cell .pct {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.price-cell .ref-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.price-cell.no-data {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+}
+
+.status, .error-cell {
+  text-align: left;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--ink-muted);
+}
+
+/* ---------- News ---------- */
+
+.news-section { margin-bottom: 40px; }
+
+.news-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.news-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 18px 20px;
+}
+
+.news-card h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 21px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 8px;
+}
+
+.headline {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  column-gap: 8px;
+  margin-bottom: 12px;
+}
+
+.headline-icon { font-size: 16px; line-height: 1.4; }
+
+.headline-title {
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1.35;
+  display: block;
+}
+.headline-title:hover { text-decoration: underline; }
+
+.headline-meta {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.headline-empty {
+  font-size: 15px;
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+.news-empty {
+  font-size: 16px;
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+  text-align: center;
+  padding: 24px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--rule);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+  .masthead { padding: 16px; gap: 14px; }
+  .masthead-illustration { width: 60px; height: 60px; }
+  .masthead-text h1 { font-size: 30px; }
+  main { padding: 20px; }
+  .section-header h2 { font-size: 24px; }
+}
+
+/* ---------- Accessibility ---------- */
+
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

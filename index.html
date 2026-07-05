@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Current &amp; Future — Sector Almanac</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <img src="assets/otter-masthead.png" alt="Otter reading a financial newspaper" class="masthead-illustration">
+  <div class="masthead-text">
+    <h1>Current &amp; Future</h1>
+    <p class="masthead-subtitle">A private sector almanac · <span id="last-updated"></span></p>
+  </div>
+  <button id="settings-toggle" class="settings-toggle" aria-label="Settings">⚙</button>
+</header>
+
+<section id="settings-panel" class="settings-panel hidden">
+  <label for="marketaux-key-input">Marketaux API key</label>
+  <input type="text" id="marketaux-key-input" placeholder="Paste your free Marketaux API key">
+  <button id="save-key-btn">Save key</button>
+  <p class="settings-note">Get a free key at <a href="https://www.marketaux.com" target="_blank" rel="noopener">marketaux.com</a> — 100 requests/day, no card required. Your key is stored only in this browser (localStorage), never sent anywhere but Marketaux.</p>
+</section>
+
+<main>
+  <section class="grid-section">
+    <div class="section-header">
+      <h2>Sector performance</h2>
+      <button id="refresh-prices-btn" class="refresh-btn">↻ Refresh prices</button>
+    </div>
+    <p class="section-note">Each figure is measured against the date shown beneath it — not a fixed "today." Color depth reflects how large the move is relative to the other sectors in that column.</p>
+    <div class="table-wrap">
+      <table class="sector-grid">
+        <thead>
+          <tr>
+            <th class="sector-name-cell">Sector</th>
+            <th>1D</th>
+            <th>1W</th>
+            <th>1M</th>
+            <th>YTD</th>
+            <th>1Y</th>
+            <th>3Y</th>
+            <th>5Y</th>
+          </tr>
+        </thead>
+        <tbody id="grid-body">
+          <tr><td colspan="8" class="status">loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="news-section">
+    <div class="section-header">
+      <h2>What's moving each sector</h2>
+      <button id="refresh-news-btn" class="refresh-btn">↻ Refresh news</button>
+    </div>
+    <p class="section-note">🌱 up-and-comer · 📰 sectoral news (regulation, politics, new technology) · 🏢 a sector giant · 🌍 global affairs, pulled from Chatham House's public headline feed. One of each, cached once per day.</p>
+    <div id="news-panel" class="news-panel">
+      <p class="news-empty">Loading…</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Personal use only · price data via Stooq · news via Marketaux · built for Bradley &amp; Dad</p>
+</footer>
+
+<script src="sectors.js"></script>
+<script src="app.js"></script>
+<script>
+  document.getElementById("last-updated").textContent = new Date().toLocaleString();
+  document.getElementById("settings-toggle").addEventListener("click", () => {
+    document.getElementById("settings-panel").classList.toggle("hidden");
+  });
+</script>
+</body>
+</html>
