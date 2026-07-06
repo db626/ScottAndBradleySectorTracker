@@ -248,18 +248,35 @@ function classifyMagnitude(pct, period) {
   return tiers.find(t => abs <= t.max)?.label || tiers[tiers.length - 1].label;
 }
 
+// A word bank per tier/direction so the ticker doesn't repeat the same
+// phrase for every sector — one is picked at random each time.
+const VERB_BANK = {
+  quiet: ["little changed", "flat", "steady", "holding steady", "barely moved", "unchanged"],
+  active_up: ["ticks up", "edges higher", "inches up", "gains ground", "trends higher"],
+  active_down: ["ticks down", "edges lower", "inches down", "loses ground", "trends lower"],
+  "big move_up": ["climbs", "jumps", "rallies", "surges", "advances sharply"],
+  "big move_down": ["falls sharply", "drops", "slides", "tumbles", "retreats sharply"],
+  "major move_up": ["soars", "rockets", "skyrockets", "surges dramatically", "explodes higher"],
+  "major move_down": ["plunges", "craters", "collapses", "nosedives", "tumbles dramatically"]
+};
+
+function pickVerb(label, pct) {
+  const key = label === "quiet" ? "quiet" : `${label}_${pct >= 0 ? "up" : "down"}`;
+  const options = VERB_BANK[key] || [label];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
 function tickerItemHTML(sectorName, period, pct) {
   const sign = pct >= 0 ? "+" : "";
   const direction = pct >= 0 ? "ticker-up" : "ticker-down";
   const label = classifyMagnitude(pct, period);
   const flagged = label === "big move" || label === "major move";
-  const labelHTML = flagged ? `<span class="ticker-flag">${label} —</span> ` : "";
-  const periodNote = period === "1D" ? "" : ` (${period})`;
-  return `<span class="ticker-item">${labelHTML}${sectorName}${periodNote} <span class="${direction}">${sign}${pct.toFixed(1)}%</span></span>`;
+  const labelClass = flagged ? "ticker-flag" : "ticker-adjective";
+  const verb = pickVerb(label, pct);
+  return `<span class="ticker-item">${sectorName} <span class="${labelClass}">${verb}</span> (${period}) <span class="${direction}">${sign}${pct.toFixed(1)}%</span></span>`;
 }
 
 function renderTicker() {
-  const wrap = document.getElementById("ticker-wrap");
   const track = document.getElementById("ticker-track");
   const items = [];
 
@@ -285,14 +302,13 @@ function renderTicker() {
   }
 
   if (!items.length) {
-    wrap.hidden = true;
+    track.innerHTML = `<span class="ticker-item ticker-placeholder">No sector data available right now</span>`;
     return;
   }
 
   // Duplicate the sequence once so the CSS animation (which translates -50%)
   // loops seamlessly instead of showing a visible jump-cut at the end.
   track.innerHTML = items.join("") + items.join("");
-  wrap.hidden = false;
 }
 
 function formatDate(isoDate) {
