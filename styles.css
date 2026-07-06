@@ -189,6 +189,51 @@ main {
   width: 22px;
 }
 
+.sources-box {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--forest);
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin: 0 0 24px;
+}
+
+.sources-box h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0 0 10px;
+}
+
+.sources-box > p {
+  margin: 0 0 12px;
+  color: var(--ink-muted);
+  font-size: 15px;
+}
+
+.sources-list {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.sources-list li {
+  margin-bottom: 10px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.sources-list strong {
+  color: var(--ink);
+}
+
+.sources-footnote {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--gold);
+  margin: 0 !important;
+}
+
 .category-header-row td {
   padding: 22px 16px 10px;
   border-bottom: 3px solid var(--gold);
