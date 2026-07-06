@@ -397,10 +397,10 @@ main {
 }
 
 .news-card {
-  background: var(--paper-raised);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  padding: 18px 20px;
+  background: #FBEBDA;
+  border: 1px solid #EDD3B4;
+  border-radius: 16px;
+  padding: 20px 22px;
 }
 
 .news-card h3 {
