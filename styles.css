@@ -38,6 +38,42 @@ body {
 a { color: var(--forest); }
 a:hover { color: var(--forest-soft); }
 
+/* ---------- Ticker ---------- */
+
+.ticker-wrap {
+  background: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 10px 0;
+}
+
+.ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  animation: ticker-scroll 90s linear infinite;
+}
+
+.ticker-wrap:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  display: inline-block;
+  margin-right: 48px;
+  color: #E8E6E0;
+}
+
+.ticker-item .ticker-up { color: #6FCF97; font-weight: 600; }
+.ticker-item .ticker-down { color: #E27D60; font-weight: 600; }
+.ticker-item .ticker-flag { color: var(--gold-soft); font-weight: 700; }
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 /* ---------- Masthead ---------- */
 
 .masthead {
@@ -394,11 +430,14 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 18px;
+  background: #D7E8DB;
+  border-radius: 20px;
+  padding: 24px;
 }
 
 .news-card {
-  background: #FBEBDA;
-  border: 1px solid #EDD3B4;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
   border-radius: 16px;
   padding: 20px 22px;
 }

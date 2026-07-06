@@ -233,6 +233,68 @@ function computeChangesForHistory(history) {
 
 // Diverging scale, computed per column (per period) across whatever sectors loaded
 // successfully, anchored at 0. Returns a CSS color string.
+// Magnitude thresholds per period, based on rough real-world benchmarks for
+// each timeframe (a 5% weekly move is a big deal; a 5% monthly move is not).
+// Each tier's "max" is the upper bound of |pct| for that label to apply.
+const MAGNITUDE_THRESHOLDS = {
+  "1D": [{ max: 0.5, label: "quiet" }, { max: 1.5, label: "active" }, { max: 3, label: "big move" }, { max: Infinity, label: "major move" }],
+  "1W": [{ max: 2, label: "quiet" }, { max: 4, label: "active" }, { max: 7, label: "big move" }, { max: Infinity, label: "major move" }],
+  "1M": [{ max: 4, label: "quiet" }, { max: 7, label: "active" }, { max: 12, label: "big move" }, { max: Infinity, label: "major move" }]
+};
+
+function classifyMagnitude(pct, period) {
+  const tiers = MAGNITUDE_THRESHOLDS[period] || MAGNITUDE_THRESHOLDS["1D"];
+  const abs = Math.abs(pct);
+  return tiers.find(t => abs <= t.max)?.label || tiers[tiers.length - 1].label;
+}
+
+function tickerItemHTML(sectorName, period, pct) {
+  const sign = pct >= 0 ? "+" : "";
+  const direction = pct >= 0 ? "ticker-up" : "ticker-down";
+  const label = classifyMagnitude(pct, period);
+  const flagged = label === "big move" || label === "major move";
+  const labelHTML = flagged ? `<span class="ticker-flag">${label} —</span> ` : "";
+  const periodNote = period === "1D" ? "" : ` (${period})`;
+  return `<span class="ticker-item">${labelHTML}${sectorName}${periodNote} <span class="${direction}">${sign}${pct.toFixed(1)}%</span></span>`;
+}
+
+function renderTicker() {
+  const wrap = document.getElementById("ticker-wrap");
+  const track = document.getElementById("ticker-track");
+  const items = [];
+
+  for (const sector of SECTORS) {
+    const data = priceDataBySector[sector.id];
+    if (!data || data.error) continue;
+
+    // Always show the daily number — this is the ticker's steady heartbeat.
+    if (data.results["1D"]) {
+      items.push(tickerItemHTML(sector.name, "1D", data.results["1D"].pct));
+    }
+    // Only call out 1W/1M specifically when they cross into "big" or "major"
+    // territory — otherwise every sector would show 3 near-identical numbers
+    // and the flagged ones wouldn't stand out.
+    for (const period of ["1W", "1M"]) {
+      const cell = data.results[period];
+      if (!cell) continue;
+      const label = classifyMagnitude(cell.pct, period);
+      if (label === "big move" || label === "major move") {
+        items.push(tickerItemHTML(sector.name, period, cell.pct));
+      }
+    }
+  }
+
+  if (!items.length) {
+    wrap.hidden = true;
+    return;
+  }
+
+  // Duplicate the sequence once so the CSS animation (which translates -50%)
+  // loops seamlessly instead of showing a visible jump-cut at the end.
+  track.innerHTML = items.join("") + items.join("");
+  wrap.hidden = false;
+}
+
 function formatDate(isoDate) {
   // "2026-07-01" -> "01 JUL '26" — the year matters here since 1Y/3Y/5Y
   // reference dates would otherwise look confusingly similar to recent ones
@@ -322,6 +384,7 @@ async function loadAllPrices() {
   progressTrack.hidden = true;
   btn.textContent = originalLabel;
   btn.disabled = false;
+  renderTicker(); // built from the same priceDataBySector we just finished populating
 }
 
 const CATEGORY_INFO = {
