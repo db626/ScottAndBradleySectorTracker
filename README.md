@@ -58,6 +58,17 @@ key here, the app works exactly as before — this is purely an optional
 safety net. When a card is showing GNews-sourced data, you'll see a small
 "via GNews (Marketaux unavailable)" note so it's never silently substituted.
 
+## Network timeouts
+
+Every fetch in this app (Stooq, Twelve Data, Alpha Vantage, Marketaux,
+GNews, all RSS/Atom feeds, both CORS proxies) goes through a shared
+`fetchWithTimeout` helper with an 8-second cutoff. Plain browser `fetch()`
+has no timeout of its own — if a server or proxy hangs without ever
+responding (not an error, just silence), the promise waits forever. Since
+sectors are processed one at a time, a single stuck request used to freeze
+the entire "Refresh news" button permanently. Now every call fails fast and
+moves on to the next fallback tier instead.
+
 ## Sector news architecture (dedicated feeds + global pool first)
 
 Each sector's 🌱/📰/🏢 rows now search, in order:
